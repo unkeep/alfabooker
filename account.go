@@ -44,7 +44,7 @@ func GetAccount(emal string, pass string) (Account, error) {
 	return &accountImpl{
 		client:     client,
 		lastMsgNum: mbox.Messages,
-		amountRE:   regexp.MustCompile(`Сумма:([-+]?[0-9]*\.?[0-9]*) BYN`),
+		amountRE:   regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
 	}, nil
 }
 
@@ -125,7 +125,7 @@ func (acc *accountImpl) getOperation(num uint32) (Operation, error) {
 
 	amount, err := acc.parseAmount(bodyBytes)
 	if err != nil {
-		return Operation{}, err
+		log.Println("Error: ", err)
 	}
 
 	return Operation{

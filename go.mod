@@ -1,6 +1,6 @@
 module github.com/unkeep/alfabooker
 
-go 1.12
+go 1.11
 
 require (
 	github.com/aws/aws-sdk-go v1.19.5 // indirect

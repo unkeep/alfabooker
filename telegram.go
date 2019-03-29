@@ -8,10 +8,13 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-var IgnoreOption = "/ignore"
+type Option struct {
+	Data string
+	Text string
+}
 
 type Telegram interface {
-	AskForOperationCategory(operation Operation, options []string) error
+	AskForOperationCategory(operation Operation, options []Option) error
 	GetMessagesChan() <-chan string
 	GetOperationReplyChan() <-chan OperationReply
 }
@@ -76,12 +79,12 @@ type telegramImpl struct {
 	chatID      int64
 }
 
-func createOperationReplyButton(operation Operation, option string) tgbotapi.InlineKeyboardButton {
-	data := operation.ID + ":" + option
-	return tgbotapi.NewInlineKeyboardButtonData(option, data)
+func createOperationReplyButton(operation Operation, option Option) tgbotapi.InlineKeyboardButton {
+	data := operation.ID + ":" + option.Data
+	return tgbotapi.NewInlineKeyboardButtonData(option.Text, data)
 }
 
-func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []string) error {
+func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []Option) error {
 	log.Println(operation.Description)
 
 	msgText := fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", operation.Description, operation.Amount)
