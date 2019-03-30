@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -84,9 +85,16 @@ func (c *Controller) handleNewMessage(msg string) {
 func (c *Controller) handleOperationReply(opReply OperationReply) {
 	op, ok := c.pendingOperations[opReply.OperationID]
 	if !ok {
-		// TODO: report error
 		return
 	}
 
-	log.Printf("Operation: %v, reply: %s\n", op, opReply.Reply)
+	if opReply.Reply != IgnoreOptionID {
+		categoryID, _ := strconv.Atoi(opReply.Reply)
+		if err := c.budgets.IncreaseSpent(categoryID, op.Amount); err != nil {
+			log.Println(err)
+			// TODO: report error
+		}
+	}
+
+	delete(c.pendingOperations, op.ID)
 }

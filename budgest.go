@@ -1,6 +1,8 @@
 package main
 
-import "errors"
+import (
+	"log"
+)
 
 type Budget struct {
 	ID   string
@@ -24,5 +26,6 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 }
 
 func (b *budgetsImpl) IncreaseSpent(id int, value float64) error {
-	return errors.New("notImplemented")
+	log.Println("IncreaseSpent: ", id, " - ", value)
+	return nil
 }
