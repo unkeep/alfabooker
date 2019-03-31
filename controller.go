@@ -1,9 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
+
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 type Controller struct {
@@ -19,6 +26,21 @@ func (c *Controller) Run() {
 	opChan := c.pollOperations()
 	msgChan := c.telegram.GetMessagesChan()
 	opReplyChan := c.telegram.GetOperationReplyChan()
+
+	b, err := ioutil.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Unable to read client secret file: %v", err)
+	}
+
+	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets")
+	if err != nil {
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+	}
+	client := c.getClient(config)
+
+	if err := c.budgets.SetClient(client); err != nil {
+		log.Fatal(err)
+	}
 
 	for {
 		select {
@@ -97,4 +119,28 @@ func (c *Controller) handleOperationReply(opReply OperationReply) {
 	}
 
 	delete(c.pendingOperations, op.ID)
+}
+
+// Retrieve a token, saves the token, then returns the generated client.
+func (c *Controller) getClient(config *oauth2.Config) *http.Client {
+	tok := c.getTokenFromWeb(config)
+	return config.Client(context.Background(), tok)
+}
+
+// Request a token from the web, then returns the retrieved token.
+func (c *Controller) getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	msg := fmt.Sprintf("Go to the following link in your browser then type the "+
+		"authorization code: \n%v\n", authURL)
+
+	c.telegram.SendMessage(msg)
+
+	authCode := <-c.telegram.GetMessagesChan()
+
+	tok, err := config.Exchange(context.TODO(), authCode)
+	if err != nil {
+		log.Fatalf("Unable to retrieve token from web: %v", err)
+	}
+
+	return tok
 }

@@ -15,7 +15,7 @@ func main() {
 	tg, err := GetTelegram(cfg.TgToken, cfg.TgChatID)
 	fatalIfErr(err)
 
-	budgets, err := GetBudgets()
+	budgets, err := GetBudgets(cfg.GSheetID)
 	fatalIfErr(err)
 
 	controller := &Controller{

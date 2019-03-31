@@ -17,6 +17,7 @@ type Telegram interface {
 	AskForOperationCategory(operation Operation, options []Option) error
 	GetMessagesChan() <-chan string
 	GetOperationReplyChan() <-chan OperationReply
+	SendMessage(text string) error
 }
 
 type OperationReply struct {
@@ -92,12 +93,13 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []O
 	msg := tgbotapi.NewMessage(tg.chatID, msgText)
 	msg.ParseMode = tgbotapi.ModeMarkdown
 
-	var buttons []tgbotapi.InlineKeyboardButton
+	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, option := range options {
-		buttons = append(buttons, createOperationReplyButton(operation, option))
+		btn := createOperationReplyButton(operation, option)
+		rows = append(rows, []tgbotapi.InlineKeyboardButton{btn})
 	}
 
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(buttons)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 
 	_, err := tg.bot.Send(msg)
 
@@ -110,4 +112,11 @@ func (tg *telegramImpl) GetMessagesChan() <-chan string {
 
 func (tg *telegramImpl) GetOperationReplyChan() <-chan OperationReply {
 	return tg.opReplyChan
+}
+
+func (tg *telegramImpl) SendMessage(text string) error {
+	msg := tgbotapi.NewMessage(tg.chatID, text)
+	_, err := tg.bot.Send(msg)
+
+	return err
 }
