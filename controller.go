@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"golang.org/x/net/context"
@@ -111,8 +110,7 @@ func (c *Controller) handleOperationReply(opReply OperationReply) {
 	}
 
 	if opReply.Reply != IgnoreOptionID {
-		categoryID, _ := strconv.Atoi(opReply.Reply)
-		if err := c.budgets.IncreaseSpent(categoryID, op.Amount); err != nil {
+		if err := c.budgets.IncreaseSpent(opReply.Reply, op.Amount); err != nil {
 			log.Println(err)
 			// TODO: report error
 		}

@@ -94,9 +94,18 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []O
 	msg.ParseMode = tgbotapi.ModeMarkdown
 
 	var rows [][]tgbotapi.InlineKeyboardButton
+	var row []tgbotapi.InlineKeyboardButton
 	for _, option := range options {
+		if len(row) == 2 {
+			rows = append(rows, row)
+			row = make([]tgbotapi.InlineKeyboardButton, 0, 2)
+		}
 		btn := createOperationReplyButton(operation, option)
-		rows = append(rows, []tgbotapi.InlineKeyboardButton{btn})
+		row = append(row, btn)
+	}
+
+	if len(row) != 0 {
+		rows = append(rows, row)
 	}
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
