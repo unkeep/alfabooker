@@ -100,7 +100,9 @@ func (c *Controller) handleNewOperation(operation Operation) {
 		Text: "❌ Ignore",
 	})
 
-	c.telegram.AskForOperationCategory(operation, replyOptions)
+	if err := c.telegram.AskForOperationCategory(operation, replyOptions); err != nil {
+		log.Println(err)
+	}
 }
 
 func (c *Controller) handleNewMessage(msg string) {

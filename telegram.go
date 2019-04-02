@@ -48,7 +48,7 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 			}
 
 			if upd.CallbackQuery != nil {
-				bot.AnswerCallbackQuery(tgbotapi.NewCallback(upd.CallbackQuery.ID, upd.CallbackQuery.Data))
+				bot.AnswerCallbackQuery(tgbotapi.NewCallback(upd.CallbackQuery.ID, "Category accepted"))
 
 				data := upd.CallbackQuery.Data
 				replyTokens := strings.Split(data, ":")
@@ -60,6 +60,12 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 				opReplyChan <- OperationReply{
 					OperationID: replyTokens[0],
 					Reply:       replyTokens[1],
+				}
+
+				keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, upd.CallbackQuery.Message.MessageID, createStatusInlineKeyboardMarkup("✅ done"))
+				_, err := bot.Send(keyboardEdit)
+				if err != nil {
+					log.Println(err)
 				}
 			}
 		}
@@ -78,6 +84,14 @@ type telegramImpl struct {
 	msgChan     chan string
 	opReplyChan chan OperationReply
 	chatID      int64
+}
+
+func createStatusInlineKeyboardMarkup(status string) tgbotapi.InlineKeyboardMarkup {
+	row := []tgbotapi.InlineKeyboardButton{
+		tgbotapi.NewInlineKeyboardButtonData(status, status),
+	}
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(row)
+	return keyboard
 }
 
 func createOperationReplyButton(operation Operation, option Option) tgbotapi.InlineKeyboardButton {
@@ -110,7 +124,8 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []O
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 
-	_, err := tg.bot.Send(msg)
+	sentMsg, err := tg.bot.Send(msg)
+	log.Println("Sent message: ", sentMsg)
 
 	return err
 }

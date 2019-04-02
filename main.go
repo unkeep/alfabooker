@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func main() {
@@ -25,6 +27,7 @@ func main() {
 		pendingOperations: make(map[string]Operation),
 	}
 
+	go http.ListenAndServe("0.0.0.0:8080", nil)
 	controller.Run()
 }
 
