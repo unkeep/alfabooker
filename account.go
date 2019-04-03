@@ -36,15 +36,9 @@ func GetAccount(emal string, pass string) (Account, error) {
 	}
 	log.Println("Logged in")
 
-	mbox, err := client.Select("alfa-bank", false)
-	if err != nil {
-		return nil, err
-	}
-
 	return &accountImpl{
-		client:     client,
-		lastMsgNum: mbox.Messages,
-		amountRE:   regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
+		client:   client,
+		amountRE: regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
 	}, nil
 }
 
@@ -55,16 +49,20 @@ type accountImpl struct {
 }
 
 func (acc *accountImpl) GetLastOperation() (Operation, error) {
-	var num uint32
-	if acc.lastMsgNum == 0 {
-		num = 1
-	} else {
-		num = acc.lastMsgNum
+	mbox, err := acc.client.Select("alfa-bank", true)
+	if err != nil {
+		return Operation{}, err
 	}
 
-	op, err := acc.getOperation(num)
+	msgNum := mbox.Messages
+
+	if msgNum == acc.lastMsgNum {
+		return Operation{}, ErrOperationNotFound
+	}
+
+	op, err := acc.getOperation(msgNum)
 	if err == nil {
-		acc.lastMsgNum++
+		acc.lastMsgNum = msgNum
 	}
 
 	return op, err

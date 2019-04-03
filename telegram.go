@@ -124,8 +124,7 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []O
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 
-	sentMsg, err := tg.bot.Send(msg)
-	log.Println("Sent message: ", sentMsg)
+	_, err := tg.bot.Send(msg)
 
 	return err
 }
