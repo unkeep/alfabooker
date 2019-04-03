@@ -91,7 +91,7 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	for _, b := range budgets {
 		replyOptions = append(replyOptions, Option{
 			Data: b.ID,
-			Text: b.Name,
+			Text: fmt.Sprintf("%s (%d%%)", b.Name, b.SpentPct),
 		})
 	}
 

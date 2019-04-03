@@ -10,8 +10,9 @@ import (
 )
 
 type Budget struct {
-	ID   string
-	Name string
+	ID       string
+	Name     string
+	SpentPct uint8
 }
 
 type Budgets interface {
@@ -32,7 +33,7 @@ type budgetsImpl struct {
 }
 
 func (b *budgetsImpl) List() ([]Budget, error) {
-	readRange := "A1:A15"
+	readRange := "A1:D15"
 	resp, err := b.srv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
 	if err != nil {
 		return nil, err
@@ -40,12 +41,16 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 
 	result := make([]Budget, 0, len(resp.Values))
 	for i, row := range resp.Values {
-		value := row[0]
-		text, ok := value.(string)
-		if ok && text != "" {
+		nameVal := row[0]
+		name, ok := nameVal.(string)
+		if ok && name != "" {
+			pctVal := row[3]
+			pctStr, _ := pctVal.(string)
+			pct, _ := strconv.Atoi(pctStr)
 			result = append(result, Budget{
-				ID:   strconv.Itoa(i + 1),
-				Name: text,
+				ID:       strconv.Itoa(i + 1),
+				Name:     name,
+				SpentPct: uint8(pct),
 			})
 		}
 	}
