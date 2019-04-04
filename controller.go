@@ -15,19 +15,20 @@ import (
 )
 
 type Controller struct {
-	budgets           Budgets
-	account           Account
-	telegram          Telegram
-	pendingOperations map[string]Operation
-	googleAuthCode    string
+	budgets          Budgets
+	account          Account
+	telegram         Telegram
+	askingOperations map[int]Operation
+	googleAuthCode   string
+	budgetsCache     map[string]string
 }
 
-const IgnoreOptionID = "IgnoreOptionID"
+const IgnoreBtnID = "IgnoreBtnID"
 
 func (c *Controller) Run() {
 	opChan := c.pollOperations()
 	msgChan := c.telegram.GetMessagesChan()
-	opReplyChan := c.telegram.GetOperationReplyChan()
+	btnReplyChan := c.telegram.GetBtnReplyChan()
 
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
@@ -50,8 +51,8 @@ func (c *Controller) Run() {
 			c.handleNewOperation(op)
 		case msg := <-msgChan:
 			c.handleNewMessage(msg)
-		case opReply := <-opReplyChan:
-			c.handleOperationReply(opReply)
+		case btnReply := <-btnReplyChan:
+			c.handleBtnReply(btnReply)
 		}
 	}
 }
@@ -80,27 +81,28 @@ func (c *Controller) pollOperations() chan Operation {
 }
 
 func (c *Controller) handleNewOperation(operation Operation) {
-	c.pendingOperations[operation.ID] = operation
-
 	budgets, err := c.budgets.List()
 	if err != nil {
 		// TODO: handle error
 	}
 
-	replyOptions := make([]Option, 0, len(budgets)+1)
+	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
-		replyOptions = append(replyOptions, Option{
+		c.budgetsCache[b.ID] = b.Name
+		btns = append(btns, Btn{
 			Data: b.ID,
 			Text: fmt.Sprintf("%s (%d%%)", b.Name, b.SpentPct),
 		})
 	}
 
-	replyOptions = append(replyOptions, Option{
-		Data: IgnoreOptionID,
+	btns = append(btns, Btn{
+		Data: IgnoreBtnID,
 		Text: "❌ Ignore",
 	})
 
-	if err := c.telegram.AskForOperationCategory(operation, replyOptions); err != nil {
+	if msgID, err := c.telegram.AskForOperationCategory(operation, btns); err == nil {
+		c.askingOperations[msgID] = operation
+	} else {
 		log.Println(err)
 	}
 }
@@ -108,20 +110,29 @@ func (c *Controller) handleNewOperation(operation Operation) {
 func (c *Controller) handleNewMessage(msg string) {
 }
 
-func (c *Controller) handleOperationReply(opReply OperationReply) {
-	op, ok := c.pendingOperations[opReply.OperationID]
+func (c *Controller) handleBtnReply(reply BtnReply) {
+	op, ok := c.askingOperations[reply.MessageID]
 	if !ok {
 		return
 	}
 
-	if opReply.Reply != IgnoreOptionID {
-		if err := c.budgets.IncreaseSpent(opReply.Reply, op.Amount); err != nil {
+	var acceptingText string
+	if reply.Data == IgnoreBtnID {
+		acceptingText = "❌ Ignored"
+	} else {
+		budgetID := reply.Data
+		if err := c.budgets.IncreaseSpent(budgetID, op.Amount); err != nil {
 			log.Println(err)
-			// TODO: report error
+			return
 		}
+		acceptingText = "✅ " + c.budgetsCache[budgetID]
 	}
 
-	delete(c.pendingOperations, op.ID)
+	delete(c.askingOperations, reply.MessageID)
+
+	if err := c.telegram.AcceptReply(reply.MessageID, acceptingText); err != nil {
+		log.Println(err)
+	}
 }
 
 // Retrieve a token, saves the token, then returns the generated client.

@@ -21,10 +21,11 @@ func main() {
 	fatalIfErr(err)
 
 	controller := &Controller{
-		budgets:           budgets,
-		account:           account,
-		telegram:          tg,
-		pendingOperations: make(map[string]Operation),
+		budgets:          budgets,
+		account:          account,
+		telegram:         tg,
+		askingOperations: make(map[int]Operation),
+		budgetsCache:     make(map[string]string),
 	}
 
 	go http.ListenAndServe("0.0.0.0:8080", nil)

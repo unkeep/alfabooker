@@ -3,26 +3,26 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type Option struct {
+type Telegram interface {
+	AskForOperationCategory(operation Operation, btns []Btn) (int, error)
+	GetMessagesChan() <-chan string
+	GetBtnReplyChan() <-chan BtnReply
+	SendMessage(text string) error
+	AcceptReply(msgID int, text string) error
+}
+
+type Btn struct {
 	Data string
 	Text string
 }
 
-type Telegram interface {
-	AskForOperationCategory(operation Operation, options []Option) error
-	GetMessagesChan() <-chan string
-	GetOperationReplyChan() <-chan OperationReply
-	SendMessage(text string) error
-}
-
-type OperationReply struct {
-	OperationID string
-	Reply       string
+type BtnReply struct {
+	MessageID int
+	Data      string
 }
 
 func GetTelegram(botToken string, chatID int64) (Telegram, error) {
@@ -39,7 +39,7 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 	}
 
 	msgChan := make(chan string)
-	opReplyChan := make(chan OperationReply)
+	btnReplyChan := make(chan BtnReply)
 
 	go func() {
 		for upd := range updCh {
@@ -48,41 +48,27 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 			}
 
 			if upd.CallbackQuery != nil {
-				data := upd.CallbackQuery.Data
-				replyTokens := strings.Split(data, ":")
-				if len(replyTokens) != 2 {
-					// TODO: report error
-					continue
+				btnReplyChan <- BtnReply{
+					MessageID: upd.CallbackQuery.Message.MessageID,
+					Data:      upd.CallbackQuery.Data,
 				}
-
-				opReplyChan <- OperationReply{
-					OperationID: replyTokens[0],
-					Reply:       replyTokens[1],
-				}
-
-				keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, upd.CallbackQuery.Message.MessageID, createStatusInlineKeyboardMarkup("✅ saved"))
-				_, err := bot.Send(keyboardEdit)
-				if err != nil {
-					log.Println(err)
-				}
-				bot.AnswerCallbackQuery(tgbotapi.NewCallback(upd.CallbackQuery.ID, "Category accepted"))
 			}
 		}
 	}()
 
 	return &telegramImpl{
-		bot:         bot,
-		chatID:      chatID,
-		msgChan:     msgChan,
-		opReplyChan: opReplyChan,
+		bot:          bot,
+		chatID:       chatID,
+		msgChan:      msgChan,
+		btnReplyChan: btnReplyChan,
 	}, nil
 }
 
 type telegramImpl struct {
-	bot         *tgbotapi.BotAPI
-	msgChan     chan string
-	opReplyChan chan OperationReply
-	chatID      int64
+	bot          *tgbotapi.BotAPI
+	msgChan      chan string
+	btnReplyChan chan BtnReply
+	chatID       int64
 }
 
 func createStatusInlineKeyboardMarkup(status string) tgbotapi.InlineKeyboardMarkup {
@@ -93,12 +79,7 @@ func createStatusInlineKeyboardMarkup(status string) tgbotapi.InlineKeyboardMark
 	return keyboard
 }
 
-func createOperationReplyButton(operation Operation, option Option) tgbotapi.InlineKeyboardButton {
-	data := operation.ID + ":" + option.Data
-	return tgbotapi.NewInlineKeyboardButtonData(option.Text, data)
-}
-
-func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []Option) error {
+func (tg *telegramImpl) AskForOperationCategory(operation Operation, btns []Btn) (int, error) {
 	log.Println(operation.Description)
 
 	msgText := fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", operation.Description, operation.Amount)
@@ -107,38 +88,40 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, options []O
 	msg.ParseMode = tgbotapi.ModeMarkdown
 
 	var rows [][]tgbotapi.InlineKeyboardButton
-	var row []tgbotapi.InlineKeyboardButton
-	for _, option := range options {
-		if len(row) == 2 {
-			rows = append(rows, row)
-			row = make([]tgbotapi.InlineKeyboardButton, 0, 2)
-		}
-		btn := createOperationReplyButton(operation, option)
-		row = append(row, btn)
-	}
-
-	if len(row) != 0 {
+	for _, btn := range btns {
+		tgBtn := tgbotapi.NewInlineKeyboardButtonData(btn.Text, btn.Data)
+		row := []tgbotapi.InlineKeyboardButton{tgBtn}
 		rows = append(rows, row)
 	}
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 
-	_, err := tg.bot.Send(msg)
+	sentMsg, err := tg.bot.Send(msg)
 
-	return err
+	if err != nil {
+		return 0, err
+	}
+
+	return sentMsg.MessageID, nil
 }
 
 func (tg *telegramImpl) GetMessagesChan() <-chan string {
 	return tg.msgChan
 }
 
-func (tg *telegramImpl) GetOperationReplyChan() <-chan OperationReply {
-	return tg.opReplyChan
+func (tg *telegramImpl) GetBtnReplyChan() <-chan BtnReply {
+	return tg.btnReplyChan
 }
 
 func (tg *telegramImpl) SendMessage(text string) error {
 	msg := tgbotapi.NewMessage(tg.chatID, text)
 	_, err := tg.bot.Send(msg)
 
+	return err
+}
+
+func (tg *telegramImpl) AcceptReply(msgID int, text string) error {
+	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(tg.chatID, msgID, createStatusInlineKeyboardMarkup(text))
+	_, err := tg.bot.Send(keyboardEdit)
 	return err
 }
