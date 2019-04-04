@@ -33,7 +33,7 @@ type budgetsImpl struct {
 }
 
 func (b *budgetsImpl) List() ([]Budget, error) {
-	readRange := "A1:D15"
+	readRange := "A1:D14"
 	resp, err := b.srv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
 	if err != nil {
 		return nil, err
@@ -41,18 +41,27 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 
 	result := make([]Budget, 0, len(resp.Values))
 	for i, row := range resp.Values {
-		nameVal := row[0]
-		name, ok := nameVal.(string)
-		if ok && name != "" {
-			pctVal := row[3]
-			pctStr, _ := pctVal.(string)
-			pct, _ := strconv.Atoi(pctStr)
-			result = append(result, Budget{
-				ID:       strconv.Itoa(i + 1),
-				Name:     name,
-				SpentPct: uint8(pct),
-			})
+		if len(row) == 0 {
+			continue
 		}
+
+		name, _ := row[0].(string)
+		if name == "" {
+			continue
+		}
+
+		amountStr, _ := row[1].(string)
+		if amount, _ := strconv.Atoi(amountStr); amount == 0 {
+			continue
+		}
+
+		pctStr, _ := row[3].(string)
+		pct, _ := strconv.Atoi(pctStr)
+		result = append(result, Budget{
+			ID:       strconv.Itoa(i + 1),
+			Name:     name,
+			SpentPct: uint8(pct),
+		})
 	}
 
 	return result, nil

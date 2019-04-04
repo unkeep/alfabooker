@@ -20,35 +20,41 @@ type Account interface {
 	Logout()
 }
 
-func GetAccount(emal string, pass string) (Account, error) {
-	log.Println("Connecting to the imap.gmail.com:993...")
-
-	// Connect to server
-	client, err := imapClient.DialTLS("imap.gmail.com:993", nil)
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Connected")
-
-	// Login
-	if err := client.Login(emal, pass); err != nil {
-		return nil, err
-	}
-	log.Println("Logged in")
-
-	return &accountImpl{
-		client:   client,
+func GetAccount(email string, pass string) (Account, error) {
+	acc := &accountImpl{
+		email:    email,
+		pass:     pass,
 		amountRE: regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
-	}, nil
+	}
+
+	err := acc.connect()
+
+	return acc, err
 }
 
 type accountImpl struct {
+	email      string
+	pass       string
 	client     *imapClient.Client
 	lastMsgNum uint32
 	amountRE   *regexp.Regexp
 }
 
 func (acc *accountImpl) GetLastOperation() (Operation, error) {
+	op, err := acc.getLastOperation()
+
+	// reconnect and retry if nessesary
+	if err != nil && err.Error() == "imap: connection closed" {
+		if acc.connect(); err != nil {
+			return Operation{}, err
+		}
+		return acc.getLastOperation()
+	}
+
+	return op, err
+}
+
+func (acc *accountImpl) getLastOperation() (Operation, error) {
 	mbox, err := acc.client.Select("alfa-bank", true)
 	if err != nil {
 		return Operation{}, err
@@ -135,4 +141,29 @@ func (acc *accountImpl) getOperation(num uint32) (Operation, error) {
 
 func (acc *accountImpl) Logout() {
 	acc.client.Logout()
+}
+
+func (acc *accountImpl) connect() error {
+	log.Println("Connecting to the imap.gmail.com:993...")
+
+	if acc.client != nil {
+		acc.client.Close()
+	}
+
+	// Connect to server
+	client, err := imapClient.DialTLS("imap.gmail.com:993", nil)
+	if err != nil {
+		return err
+	}
+	log.Println("Connected")
+
+	acc.client = client
+
+	// Login
+	if err := client.Login(acc.email, acc.pass); err != nil {
+		return err
+	}
+	log.Println("Logged in")
+
+	return nil
 }

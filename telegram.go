@@ -48,8 +48,6 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 			}
 
 			if upd.CallbackQuery != nil {
-				bot.AnswerCallbackQuery(tgbotapi.NewCallback(upd.CallbackQuery.ID, "Category accepted"))
-
 				data := upd.CallbackQuery.Data
 				replyTokens := strings.Split(data, ":")
 				if len(replyTokens) != 2 {
@@ -62,11 +60,12 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 					Reply:       replyTokens[1],
 				}
 
-				keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, upd.CallbackQuery.Message.MessageID, createStatusInlineKeyboardMarkup("✅ done"))
+				keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, upd.CallbackQuery.Message.MessageID, createStatusInlineKeyboardMarkup("✅ saved"))
 				_, err := bot.Send(keyboardEdit)
 				if err != nil {
 					log.Println(err)
 				}
+				bot.AnswerCallbackQuery(tgbotapi.NewCallback(upd.CallbackQuery.ID, "Category accepted"))
 			}
 		}
 	}()
