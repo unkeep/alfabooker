@@ -7,6 +7,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/emersion/go-imap"
 	imapClient "github.com/emersion/go-imap/client"
@@ -45,6 +46,7 @@ func (acc *accountImpl) GetLastOperation() (Operation, error) {
 
 	// reconnect and retry if nessesary
 	if err != nil && err.Error() == "imap: connection closed" {
+		time.Sleep(time.Minute)
 		if acc.connect(); err != nil {
 			return Operation{}, err
 		}
