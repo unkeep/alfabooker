@@ -5,11 +5,14 @@ import (
 )
 
 type Config struct {
-	TgToken    string `required:"true"`
-	TgChatID   int64  `required:"true"`
-	GmailLogin string `required:"true"`
-	GmailPass  string `required:"true"`
-	GSheetID   string `required:"true"`
+	TgToken       string `required:"true"`
+	TgChatID      int64  `required:"true"`
+	GmailLogin    string `required:"true"`
+	GmailPass     string `required:"true"`
+	GSheetID      string `required:"true"`
+	GClientID     string `required:"true"`
+	GClientSecret string `required:"true"`
+	GProjectID    string `required:"true"`
 }
 
 func GetConfig() (Config, error) {
