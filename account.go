@@ -1,82 +1,114 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
-	"io"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/emersion/go-imap"
-	imapClient "github.com/emersion/go-imap/client"
-	"github.com/emersion/go-message/mail"
+	"google.golang.org/api/gmail/v1"
 )
 
-// ErrOperationNotFound should be returned when new operations are not found
-var ErrOperationNotFound = errors.New("ErrOperationNotFound")
+// errOperationNotFound should be returned when new operations are not found
+var errOperationNotFound = errors.New("errOperationNotFound")
 
 // Account is an account interface
 type Account interface {
-	GetLastOperation() (Operation, error)
-	Logout()
+	GetOperationsChan() <-chan Operation
+	SetClient(client *http.Client) error
 }
 
-// GetAccount creates an account from gemail credential
-func GetAccount(email string, pass string) (Account, error) {
+// GetAccount creates an account
+func GetAccount() (Account, error) {
 	acc := &accountImpl{
-		email:    email,
-		pass:     pass,
+		opChan:   make(chan Operation),
 		amountRE: regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
 	}
 
-	err := acc.connect()
-
-	return acc, err
+	return acc, nil
 }
 
 type accountImpl struct {
-	email      string
-	pass       string
-	client     *imapClient.Client
-	lastMsgNum uint32
-	amountRE   *regexp.Regexp
+	opChan    chan Operation
+	srv       *gmail.Service
+	lastMsgID string
+	amountRE  *regexp.Regexp
 }
 
-func (acc *accountImpl) GetLastOperation() (Operation, error) {
-	op, err := acc.getLastOperation()
+func (acc *accountImpl) GetOperationsChan() <-chan Operation {
+	return acc.opChan
+}
 
-	// reconnect and retry if nessesary
-	if err != nil && err.Error() == "imap: connection closed" {
-		time.Sleep(time.Minute)
-		if acc.connect(); err != nil {
-			return Operation{}, err
-		}
-		return acc.getLastOperation()
+func (acc *accountImpl) SetClient(client *http.Client) error {
+	srv, err := gmail.New(client)
+	if err != nil {
+		return err
 	}
+	acc.srv = srv
 
-	return op, err
+	go acc.pollEmails()
+
+	return nil
+}
+
+func (acc *accountImpl) pollEmails() {
+	for {
+		op, err := acc.getLastOperation()
+		if err == nil {
+			acc.opChan <- op
+			continue
+		}
+
+		if err != errOperationNotFound {
+			// TODO: handle err
+			log.Println(err)
+		}
+
+		time.Sleep(time.Second * 5)
+	}
 }
 
 func (acc *accountImpl) getLastOperation() (Operation, error) {
-	mbox, err := acc.client.Select("alfa-bank", true)
+	listResp, err := acc.srv.Users.Messages.List("me").Q("label:alfa-bank").MaxResults(1).Do()
+
 	if err != nil {
 		return Operation{}, err
 	}
 
-	msgNum := mbox.Messages
-
-	if msgNum == acc.lastMsgNum {
-		return Operation{}, ErrOperationNotFound
+	if len(listResp.Messages) == 0 {
+		return Operation{}, errOperationNotFound
 	}
 
-	op, err := acc.getOperation(msgNum)
-	if err == nil {
-		acc.lastMsgNum = msgNum
+	id := listResp.Messages[0].Id
+	if id == acc.lastMsgID {
+		return Operation{}, errOperationNotFound
 	}
 
-	return op, err
+	getResp, err := acc.srv.Users.Messages.Get("me", id).Fields("payload").Do()
+	if err != nil {
+		return Operation{}, err
+	}
+
+	data, err := base64.URLEncoding.DecodeString(getResp.Payload.Body.Data)
+	if err != nil {
+		return Operation{}, err
+	}
+
+	acc.lastMsgID = id
+
+	amount, err := acc.parseAmount(data)
+	if err != nil {
+		log.Println(err)
+	}
+
+	return Operation{
+		ID:          id,
+		Amount:      amount,
+		Description: string(data),
+	}, nil
 }
 
 func (acc *accountImpl) parseAmount(body []byte) (float64, error) {
@@ -86,89 +118,4 @@ func (acc *accountImpl) parseAmount(body []byte) (float64, error) {
 	}
 
 	return strconv.ParseFloat(string(res[1]), 64)
-}
-
-func (acc *accountImpl) getOperation(num uint32) (Operation, error) {
-	seqset := new(imap.SeqSet)
-	seqset.AddNum(num)
-
-	section := &imap.BodySectionName{}
-	fetchItems := []imap.FetchItem{section.FetchItem()}
-
-	messages := make(chan *imap.Message, 1)
-	if err := acc.client.Fetch(seqset, fetchItems, messages); err != nil {
-		return Operation{}, nil
-	}
-
-	msg := <-messages
-
-	if msg == nil {
-		return Operation{}, ErrOperationNotFound
-	}
-
-	body := msg.GetBody(section)
-
-	// Create a new mail reader
-	mr, err := mail.CreateReader(body)
-	if err != nil {
-		return Operation{}, err
-	}
-
-	var bodyBytes []byte
-	for {
-		p, err := mr.NextPart()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return Operation{}, err
-		}
-
-		switch p.Header.(type) {
-		case mail.TextHeader:
-			bodyBytes, err = ioutil.ReadAll(p.Body)
-			if err != nil {
-				return Operation{}, err
-			}
-		}
-	}
-
-	amount, err := acc.parseAmount(bodyBytes)
-	if err != nil {
-		log.Println("Error: ", err)
-	}
-
-	return Operation{
-		ID:          strconv.Itoa(int(num)),
-		Description: string(bodyBytes),
-		Amount:      amount,
-	}, nil
-}
-
-func (acc *accountImpl) Logout() {
-	acc.client.Logout()
-}
-
-func (acc *accountImpl) connect() error {
-	log.Println("Connecting to the imap.gmail.com:993...")
-
-	if acc.client != nil {
-		acc.client.Close()
-	}
-
-	// Connect to server
-	client, err := imapClient.DialTLS("imap.gmail.com:993", nil)
-	if err != nil {
-		return err
-	}
-	log.Println("Connected")
-
-	acc.client = client
-
-	// Login
-	if err := client.Login(acc.email, acc.pass); err != nil {
-		return err
-	}
-	log.Println("Logged in")
-
-	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -18,7 +17,7 @@ type Controller struct {
 	account          Account
 	telegram         Telegram
 	askingOperations map[int]Operation
-	gSheetsAuthCfg   *oauth2.Config
+	googleAuthCfg    *oauth2.Config
 	budgetsCache     map[string]string
 }
 
@@ -26,11 +25,18 @@ const ignoreBtnID = "ignoreBtnID"
 
 // Run runs the controller
 func (c *Controller) Run() {
-	opChan := c.pollOperations()
+
 	msgChan := c.telegram.GetMessagesChan()
 	btnReplyChan := c.telegram.GetBtnReplyChan()
+	opChan := c.account.GetOperationsChan()
 
-	if err := c.budgets.SetClient(c.getGSheetsClient()); err != nil {
+	googleClient := c.getGoogleClient()
+
+	if err := c.budgets.SetClient(googleClient); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := c.account.SetClient(googleClient); err != nil {
 		log.Fatal(err)
 	}
 
@@ -44,29 +50,6 @@ func (c *Controller) Run() {
 			c.handleBtnReply(btnReply)
 		}
 	}
-}
-
-func (c *Controller) pollOperations() chan Operation {
-	ch := make(chan Operation)
-
-	go func() {
-		for {
-			op, err := c.account.GetLastOperation()
-			if err == nil {
-				ch <- op
-				continue
-			}
-
-			if err != ErrOperationNotFound {
-				// TODO: handle err
-				log.Println(err)
-			}
-
-			time.Sleep(time.Second * 5)
-		}
-	}()
-
-	return ch
 }
 
 func (c *Controller) handleNewOperation(operation Operation) {
@@ -125,14 +108,14 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func (c *Controller) getGSheetsClient() *http.Client {
+func (c *Controller) getGoogleClient() *http.Client {
 	tokFile := "token.json"
 	tok, err := c.tokenFromFile(tokFile)
 	if err != nil {
 		tok = c.getTokenFromWeb()
 		c.saveToken(tokFile, tok)
 	}
-	return c.gSheetsAuthCfg.Client(context.Background(), tok)
+	return c.googleAuthCfg.Client(context.Background(), tok)
 }
 
 func (c *Controller) tokenFromFile(file string) (*oauth2.Token, error) {
@@ -159,7 +142,7 @@ func (c *Controller) saveToken(path string, token *oauth2.Token) {
 
 // Request a token from the web, then returns the retrieved token.
 func (c *Controller) getTokenFromWeb() *oauth2.Token {
-	authURL := c.gSheetsAuthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	authURL := c.googleAuthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	msg := fmt.Sprintf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
 
@@ -167,7 +150,7 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 
 	authCode := <-c.telegram.GetMessagesChan()
 
-	tok, err := c.gSheetsAuthCfg.Exchange(context.TODO(), authCode)
+	tok, err := c.googleAuthCfg.Exchange(context.TODO(), authCode)
 	if err != nil {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
 	}
