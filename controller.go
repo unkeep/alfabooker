@@ -12,6 +12,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Controller is an application controller
 type Controller struct {
 	budgets          Budgets
 	account          Account
@@ -21,8 +22,9 @@ type Controller struct {
 	budgetsCache     map[string]string
 }
 
-const IgnoreBtnID = "IgnoreBtnID"
+const ignoreBtnID = "ignoreBtnID"
 
+// Run runs the controller
 func (c *Controller) Run() {
 	opChan := c.pollOperations()
 	msgChan := c.telegram.GetMessagesChan()
@@ -83,7 +85,7 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	}
 
 	btns = append(btns, Btn{
-		Data: IgnoreBtnID,
+		Data: ignoreBtnID,
 		Text: "❌ Ignore",
 	})
 
@@ -104,7 +106,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 	}
 
 	var acceptingText string
-	if reply.Data == IgnoreBtnID {
+	if reply.Data == ignoreBtnID {
 		acceptingText = "❌ Ignored"
 	} else {
 		budgetID := reply.Data

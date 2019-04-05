@@ -9,18 +9,21 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+// Budget is a budget info
 type Budget struct {
 	ID       string
 	Name     string
 	SpentPct uint8
 }
 
+// Budgets is an budgets access interface
 type Budgets interface {
 	List() ([]Budget, error)
 	IncreaseSpent(id string, value float64) error
 	SetClient(client *http.Client) error
 }
 
+// GetBudgets creates budgest instance from google sheets source
 func GetBudgets(sheetID string) (Budgets, error) {
 	return &budgetsImpl{
 		sheetID: sheetID,

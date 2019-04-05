@@ -7,6 +7,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
+// Telegram is an telegram bot interface
 type Telegram interface {
 	AskForOperationCategory(operation Operation, btns []Btn) (int, error)
 	GetMessagesChan() <-chan string
@@ -15,16 +16,19 @@ type Telegram interface {
 	AcceptReply(msgID int, text string) error
 }
 
+// Btn is a telegram inline btn
 type Btn struct {
 	Data string
 	Text string
 }
 
+// BtnReply is a telegram inline btn reply
 type BtnReply struct {
 	MessageID int
 	Data      string
 }
 
+// GetTelegram creates a telegram bot instance
 func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {

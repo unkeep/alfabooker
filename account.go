@@ -14,13 +14,16 @@ import (
 	"github.com/emersion/go-message/mail"
 )
 
+// ErrOperationNotFound should be returned when new operations are not found
 var ErrOperationNotFound = errors.New("ErrOperationNotFound")
 
+// Account is an account interface
 type Account interface {
 	GetLastOperation() (Operation, error)
 	Logout()
 }
 
+// GetAccount creates an account from gemail credential
 func GetAccount(email string, pass string) (Account, error) {
 	acc := &accountImpl{
 		email:    email,
