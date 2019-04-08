@@ -1,6 +1,0 @@
-#!/bin/bash
-wget -qO- https://toolbelt.heroku.com/install.sh | sh
-docker tag unkeep/alfabooker registry.heroku.com/alfabooker/web
-docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
-docker push registry.heroku.com/alfabooker/web
-heroku container:release web --app alfabooker

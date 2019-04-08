@@ -5,9 +5,18 @@ services:
 
 before_install:
   - docker build -t unkeep/alfabooker .
+  - wget -qO- https://toolbelt.heroku.com/install.sh | sh
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - echo "$HEROKU_PASSWORD" | docker login -u "$HEROKU_USERNAME" --password-stdin registry.heroku.com
+
+script:
+  - docker tag unkeep/alfabooker registry.heroku.com/alfabooker/web
 
 deploy:
   provider: script
-  script: bash docker_push_heroku
+  script:
+    docker push unkeep/alfabooker:latest;
+    docker push registry.heroku.com/alfabooker/web;
+    heroku container:release web --app alfabooker
   on:
     branch: master
