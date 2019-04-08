@@ -7,7 +7,7 @@ before_install:
   - docker build -t unkeep/alfabooker .
   - wget -qO- https://toolbelt.heroku.com/install.sh | sh
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - echo "$HEROKU_PASSWORD" | docker login -u "$HEROKU_USERNAME" --password-stdin registry.heroku.com
+  - docker login --username=_ --password=$HEROKU_APIKEY registry.heroku.com
 
 script:
   - docker tag unkeep/alfabooker registry.heroku.com/alfabooker/web
