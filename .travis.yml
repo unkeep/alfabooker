@@ -1,5 +1,3 @@
-language: go
-
 services:
   - docker
 
@@ -8,6 +6,8 @@ before_install:
 
 deploy:
   provider: script
-  script: bash docker_push_heroku
+  script:
+    bash docker_push_dockerhub
+    bash docker_push_heroku
   on:
     branch: master
