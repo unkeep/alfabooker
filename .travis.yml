@@ -8,6 +8,6 @@ before_install:
 
 deploy:
   provider: script
-  script: bash docker_push
+  script: bash docker_push_heroku
   on:
     branch: master
