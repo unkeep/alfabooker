@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -80,6 +81,20 @@ func (c *Controller) handleNewOperation(operation Operation) {
 }
 
 func (c *Controller) handleNewMessage(msg string) {
+	if msg == "?" {
+		budgets, err := c.budgets.List()
+		if err != nil {
+			c.telegram.SendMessage(err.Error())
+			return
+		}
+
+		lines := make([]string, 0, len(budgets))
+		for _, b := range budgets {
+			lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
+		}
+
+		c.telegram.SendMessage(strings.Join(lines, "\n"))
+	}
 }
 
 func (c *Controller) handleBtnReply(reply BtnReply) {

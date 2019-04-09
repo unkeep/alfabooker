@@ -13,6 +13,8 @@ import (
 type Budget struct {
 	ID       string
 	Name     string
+	Amount   int
+	Spent    int
 	SpentPct uint8
 }
 
@@ -54,15 +56,21 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 		}
 
 		amountStr, _ := row[1].(string)
-		if amount, _ := strconv.Atoi(amountStr); amount == 0 {
+		amount, _ := strconv.Atoi(amountStr)
+		if amount == 0 {
 			continue
 		}
+
+		spentStr, _ := row[2].(string)
+		spent, _ := strconv.Atoi(spentStr)
 
 		pctStr, _ := row[3].(string)
 		pct, _ := strconv.Atoi(pctStr)
 		result = append(result, Budget{
 			ID:       strconv.Itoa(i + 1),
 			Name:     name,
+			Amount:   amount,
+			Spent:    spent,
 			SpentPct: uint8(pct),
 		})
 	}
