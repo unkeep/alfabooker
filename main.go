@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -36,7 +37,12 @@ func main() {
 		googleAuthCfg:    googleAuthCfg,
 	}
 
-	go http.ListenAndServe("0.0.0.0:8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	go http.ListenAndServe("0.0.0.0:"+port, nil)
 	controller.Run()
 }
 
