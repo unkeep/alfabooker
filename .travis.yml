@@ -8,9 +8,6 @@ before_install:
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - docker push unkeep/alfabooker
 
-before_deploy:
-  - find . -maxdepth 1 -type f -not -name 'Dockerrun.aws.json' -print0 | xargs -0 rm --
-
 deploy:
   provider: elasticbeanstalk
   access_key_id: 
@@ -20,7 +17,6 @@ deploy:
   region: "eu-central-1"  
   app: "alfabooker"
   env: "Alfabooker-env"
-  skip_cleanup: true
   bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
   on:
     branch: master
