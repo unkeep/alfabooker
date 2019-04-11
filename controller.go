@@ -56,7 +56,7 @@ func (c *Controller) Run() {
 func (c *Controller) handleNewOperation(operation Operation) {
 	budgets, err := c.budgets.List()
 	if err != nil {
-		// TODO: handle error
+		log.Println(err)
 	}
 
 	btns := make([]Btn, 0, len(budgets)+1)

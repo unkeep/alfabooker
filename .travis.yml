@@ -5,18 +5,19 @@ services:
 
 before_install:
   - docker build -t unkeep/alfabooker .
-  - wget -qO- https://toolbelt.heroku.com/install.sh | sh
-  # - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - docker login --username=_ --password=$HEROKU_APIKEY registry.heroku.com
-
-script:
-  - docker tag unkeep/alfabooker registry.heroku.com/alfabooker/web
+  - docker push unkeep/alfabooker:latest
 
 deploy:
-  provider: script
-  script:
-    #docker push unkeep/alfabooker:latest;
-    docker push registry.heroku.com/alfabooker/web;
-    heroku container:release web --app alfabooker
+  provider: elasticbeanstalk
+  access_key_id: 
+    secure: "$AWS_ACCESS_KEY"
+  secret_access_key:
+    secure: "$AWS_SECRET_KEY"
+  region: "eu-central-1"  
+  app: "alfabooker"
+  env: "Alfabooker-env"
+  bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
   on:
     branch: master

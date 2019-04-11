@@ -1,0 +1,11 @@
+{
+    "Image": {
+      "Name": "unkeep/alfabooker"
+    },
+    "Ports": [
+      {
+        "ContainerPort": 8080,
+        "HostPort": 8000
+      }
+    ]
+  }
