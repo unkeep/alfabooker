@@ -1,7 +1,7 @@
-FROM golang:1.12-alpine
+FROM golang:1.12-stretch
 WORKDIR /go/alfabooker
 COPY . .
-RUN go build ./...
+RUN CGO_ENABLED=0 GOOS=linux go build ./...
 
 FROM alpine:latest
 WORKDIR /root/
