@@ -9,7 +9,7 @@ before_install:
   - docker push unkeep/alfabooker
 
 before_deploy:
-  - find . -type f -not -name 'Dockerrun.aws.json' -print0 | xargs -0 rm --
+  - find . -maxdepth 1 -type f -not -name 'Dockerrun.aws.json' -print0 | xargs -0 rm --
 
 deploy:
   provider: elasticbeanstalk
