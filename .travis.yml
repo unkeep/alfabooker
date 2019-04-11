@@ -6,8 +6,8 @@ services:
 before_install:
   - docker build -t unkeep/alfabooker .
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker login --username=_ --password=$HEROKU_APIKEY registry.heroku.com
-  - docker push unkeep/alfabooker:latest
+  - docker push unkeep/alfabooker
+  - cd aws
 
 deploy:
   provider: elasticbeanstalk
@@ -21,3 +21,4 @@ deploy:
   bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
   on:
     branch: master
+  
