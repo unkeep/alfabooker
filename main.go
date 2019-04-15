@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
 	cfg, err := GetConfig()
 	fatalIfErr(err)
 

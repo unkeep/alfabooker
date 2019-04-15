@@ -6,18 +6,22 @@ services:
 before_install:
   - docker build -t unkeep/alfabooker .
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker push unkeep/alfabooker
-
+  
 deploy:
-  provider: elasticbeanstalk
-  access_key_id: 
-    secure: "$AWS_ACCESS_KEY"
-  secret_access_key:
-    secure: "$AWS_SECRET_KEY"
-  region: "eu-central-1"  
-  app: "alfabooker"
-  env: "Alfabooker-env"
-  bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
-  on:
-    branch: master
+  - provider: script
+    script: docker push unkeep/alfabooker
+    on:
+      branch: master
+  - provider: elasticbeanstalk
+    zip_file: 'aws.zip'
+    access_key_id: 
+      secure: "$AWS_ACCESS_KEY"
+    secret_access_key:
+      secure: "$AWS_SECRET_KEY"
+    region: "eu-central-1"  
+    app: "alfabooker"
+    env: "Alfabooker-env-temp"
+    bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
+    on:
+      branch: master
   
