@@ -13,7 +13,7 @@ deploy:
     on:
       branch: master
   - provider: script
-    script: docker push unkeep/alfabooker-test
+    script: docker push unkeep/alfabooker:test
     on:
       branch: dev
   - provider: elasticbeanstalk
@@ -29,7 +29,7 @@ deploy:
     on:
       branch: master
   - provider: elasticbeanstalk
-    zip_file: 'aws.zip'
+    zip_file: 'aws-test.zip'
     access_key_id: 
       secure: "$AWS_ACCESS_KEY"
     secret_access_key:
