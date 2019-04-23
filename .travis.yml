@@ -13,7 +13,9 @@ deploy:
     on:
       branch: master
   - provider: script
-    script: docker push unkeep/alfabooker:test
+    script: 
+      - docker image tag unkeep/alfabooker unkeep/alfabooker:test
+      - docker push unkeep/alfabooker:test
     on:
       branch: dev
   - provider: elasticbeanstalk
