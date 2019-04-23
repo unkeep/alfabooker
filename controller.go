@@ -54,6 +54,14 @@ func (c *Controller) Run() {
 }
 
 func (c *Controller) handleNewOperation(operation Operation) {
+	if operation.Type == DecreasingOperation && operation.Success {
+		c.askForOperationCategory(operation)
+	} else {
+		c.telegram.SendOperation(operation)
+	}
+}
+
+func (c *Controller) askForOperationCategory(operation Operation) {
 	budgets, err := c.budgets.List()
 	if err != nil {
 		log.Println(err)
@@ -82,18 +90,25 @@ func (c *Controller) handleNewOperation(operation Operation) {
 
 func (c *Controller) handleNewMessage(msg string) {
 	if msg == "?" {
-		budgets, err := c.budgets.List()
-		if err != nil {
-			c.telegram.SendMessage(err.Error())
-			return
-		}
+		c.showBudgetsStat()
+		return
+	}
+}
 
-		lines := make([]string, 0, len(budgets))
-		for _, b := range budgets {
-			lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
-		}
+func (c *Controller) showBudgetsStat() {
+	budgets, err := c.budgets.List()
+	if err != nil {
+		c.telegram.SendMessage(err.Error())
+		return
+	}
 
-		c.telegram.SendMessage(strings.Join(lines, "\n"))
+	lines := make([]string, 0, len(budgets))
+	for _, b := range budgets {
+		lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
+	}
+
+	if err := c.telegram.SendMessage(strings.Join(lines, "\n")); err != nil {
+		log.Println(err)
 	}
 }
 

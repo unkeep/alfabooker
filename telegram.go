@@ -10,6 +10,7 @@ import (
 // Telegram is an telegram bot interface
 type Telegram interface {
 	AskForOperationCategory(operation Operation, btns []Btn) (int, error)
+	SendOperation(operation Operation) error
 	GetMessagesChan() <-chan string
 	GetBtnReplyChan() <-chan BtnReply
 	SendMessage(text string) error
@@ -107,6 +108,18 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, btns []Btn)
 	}
 
 	return sentMsg.MessageID, nil
+}
+
+func (tg *telegramImpl) SendOperation(operation Operation) error {
+	msgText := fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", operation.Description, operation.Amount)
+	msg := tgbotapi.NewMessage(tg.chatID, msgText)
+	msg.ParseMode = tgbotapi.ModeMarkdown
+
+	if _, err := tg.bot.Send(msg); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (tg *telegramImpl) GetMessagesChan() <-chan string {

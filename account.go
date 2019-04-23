@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"google.golang.org/api/gmail/v1"
@@ -24,8 +25,9 @@ type Account interface {
 // GetAccount creates an account
 func GetAccount() (Account, error) {
 	acc := &accountImpl{
-		opChan:   make(chan Operation),
-		amountRE: regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
+		opChan:    make(chan Operation),
+		amountRE:  regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
+		balanceRE: regexp.MustCompile(`Остаток:([0-9]*\.?[0-9]*)\sBYN`),
 	}
 
 	return acc, nil
@@ -36,6 +38,7 @@ type accountImpl struct {
 	srv       *gmail.Service
 	lastMsgID string
 	amountRE  *regexp.Regexp
+	balanceRE *regexp.Regexp
 }
 
 func (acc *accountImpl) GetOperationsChan() <-chan Operation {
@@ -104,9 +107,17 @@ func (acc *accountImpl) getLastOperation() (Operation, error) {
 		log.Println(err)
 	}
 
+	balance, err := acc.parseBalance(data)
+	if err != nil {
+		log.Println(err)
+	}
+
 	return Operation{
 		ID:          id,
 		Amount:      amount,
+		Balance:     balance,
+		Type:        acc.parseType(data),
+		Success:     acc.parseSuccess(data),
 		Description: string(data),
 	}, nil
 }
@@ -118,4 +129,30 @@ func (acc *accountImpl) parseAmount(body []byte) (float64, error) {
 	}
 
 	return strconv.ParseFloat(string(res[1]), 64)
+}
+
+func (acc *accountImpl) parseBalance(body []byte) (float64, error) {
+	res := acc.balanceRE.FindSubmatch(body)
+	if len(res) != 2 {
+		return 0, errors.New("unable to parse balance")
+	}
+
+	return strconv.ParseFloat(string(res[1]), 64)
+}
+
+func (acc *accountImpl) parseType(body []byte) OperationType {
+	str := string(body)
+	if strings.Contains(str, "Оплата товаров/услуг") || strings.Contains(str, "Перевод (Списание)") {
+		return DecreasingOperation
+	}
+
+	if strings.Contains(str, "Перевод (Поступление)") {
+		return IncreasingOperation
+	}
+
+	return UndefinedOperation
+}
+
+func (acc *accountImpl) parseSuccess(body []byte) bool {
+	return strings.Contains(string(body), "Успешно")
 }
