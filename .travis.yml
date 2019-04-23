@@ -1,5 +1,10 @@
 language: generic
 
+branches:
+  only:
+    - master
+    - dev
+
 services:
   - docker
 
@@ -10,12 +15,14 @@ before_install:
 deploy:
   - provider: script
     script: docker push unkeep/alfabooker
-    on: master
+    on:
+      branch: master
   - provider: script
     script: 
       - docker image tag unkeep/alfabooker unkeep/alfabooker:test
       - docker push unkeep/alfabooker:test
-    on: dev
+    on:
+      branch: dev
   - provider: elasticbeanstalk
     zip_file: 'aws.zip'
     access_key_id: 
@@ -26,7 +33,8 @@ deploy:
     app: "alfabooker"
     env: "Alfabooker-env-temp"
     bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
-    on: master
+    on:
+      branch: master
   - provider: elasticbeanstalk
     zip_file: 'aws-test.zip'
     access_key_id: 
@@ -37,5 +45,6 @@ deploy:
     app: "alfabooker"
     env: "Alfabooker-env-test"
     bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
-    on: dev
+    on:
+      branch: dev
   
