@@ -12,6 +12,10 @@ deploy:
     script: docker push unkeep/alfabooker
     on:
       branch: master
+  - provider: script
+    script: docker push unkeep/alfabooker-test
+    on:
+      branch: dev
   - provider: elasticbeanstalk
     zip_file: 'aws.zip'
     access_key_id: 
@@ -24,4 +28,16 @@ deploy:
     bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
     on:
       branch: master
+  - provider: elasticbeanstalk
+    zip_file: 'aws.zip'
+    access_key_id: 
+      secure: "$AWS_ACCESS_KEY"
+    secret_access_key:
+      secure: "$AWS_SECRET_KEY"
+    region: "eu-central-1"  
+    app: "alfabooker"
+    env: "Alfabooker-env-test"
+    bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
+    on:
+      branch: dev
   
