@@ -17,12 +17,6 @@ deploy:
     script: docker push unkeep/alfabooker
     on:
       branch: master
-  - provider: script
-    script: 
-      - docker image tag unkeep/alfabooker unkeep/alfabooker:test
-      - docker push unkeep/alfabooker:test
-    on:
-      branch: dev
   - provider: elasticbeanstalk
     zip_file: 'aws.zip'
     access_key_id: 
@@ -35,6 +29,13 @@ deploy:
     bucket_name: "elasticbeanstalk-eu-central-1-497796177862"
     on:
       branch: master
+  # test environment
+  - provider: script
+    script: 
+      - docker image tag unkeep/alfabooker unkeep/alfabooker:test
+      - docker push unkeep/alfabooker:test
+    on:
+      branch: dev
   - provider: elasticbeanstalk
     zip_file: 'aws-test.zip'
     access_key_id: 
