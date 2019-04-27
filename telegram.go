@@ -11,10 +11,16 @@ import (
 type Telegram interface {
 	AskForOperationCategory(operation Operation, btns []Btn) (int, error)
 	SendOperation(operation Operation) error
-	GetMessagesChan() <-chan string
+	GetMessagesChan() <-chan TextMsg
 	GetBtnReplyChan() <-chan BtnReply
 	SendMessage(text string) error
 	AcceptReply(msgID int, text string) error
+}
+
+// TextMsg is a plain text message
+type TextMsg struct {
+	ID   int
+	Text string
 }
 
 // Btn is a telegram inline btn
@@ -43,13 +49,13 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 		return nil, err
 	}
 
-	msgChan := make(chan string)
+	msgChan := make(chan TextMsg)
 	btnReplyChan := make(chan BtnReply)
 
 	go func() {
 		for upd := range updCh {
 			if upd.Message != nil && upd.Message.Chat.ID == chatID {
-				msgChan <- upd.Message.Text
+				msgChan <- TextMsg{ID: upd.Message.MessageID, Text: upd.Message.Text}
 			}
 
 			if upd.CallbackQuery != nil {
@@ -71,7 +77,7 @@ func GetTelegram(botToken string, chatID int64) (Telegram, error) {
 
 type telegramImpl struct {
 	bot          *tgbotapi.BotAPI
-	msgChan      chan string
+	msgChan      chan TextMsg
 	btnReplyChan chan BtnReply
 	chatID       int64
 }
@@ -122,7 +128,7 @@ func (tg *telegramImpl) SendOperation(operation Operation) error {
 	return nil
 }
 
-func (tg *telegramImpl) GetMessagesChan() <-chan string {
+func (tg *telegramImpl) GetMessagesChan() <-chan TextMsg {
 	return tg.msgChan
 }
 

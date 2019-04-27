@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -88,10 +89,20 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 	}
 }
 
-func (c *Controller) handleNewMessage(msg string) {
-	if msg == "?" {
+func (c *Controller) handleNewMessage(msg TextMsg) {
+	msg.Text = strings.TrimSpace(msg.Text)
+
+	if msg.Text == "?" {
 		c.showBudgetsStat()
 		return
+	}
+
+	if val, _ := strconv.Atoi(msg.Text); val != 0 {
+		// if msgID, err := c.telegram.AskForOperationCategory(val, btns); err == nil {
+		// 	c.askingOperations[msgID] = operation
+		// } else {
+		// 	log.Println(err)
+		// }
 	}
 }
 
@@ -178,7 +189,7 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 
 	c.telegram.SendMessage(msg)
 
-	authCode := <-c.telegram.GetMessagesChan()
+	authCode := (<-c.telegram.GetMessagesChan()).Text
 
 	tok, err := c.googleAuthCfg.Exchange(context.TODO(), authCode)
 	if err != nil {
