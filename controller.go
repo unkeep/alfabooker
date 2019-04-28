@@ -18,7 +18,7 @@ type Controller struct {
 	budgets          Budgets
 	account          Account
 	telegram         Telegram
-	askingOperations map[int]Operation
+	askingOperations map[int]float64
 	googleAuthCfg    *oauth2.Config
 	budgetsCache     map[string]string
 }
@@ -62,12 +62,7 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	}
 }
 
-func (c *Controller) askForOperationCategory(operation Operation) {
-	budgets, err := c.budgets.List()
-	if err != nil {
-		log.Println(err)
-	}
-
+func (c *Controller) butgetsToBtns(budgets []Budget) []Btn {
 	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
 		c.budgetsCache[b.ID] = b.Name
@@ -82,8 +77,19 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 		Text: "❌ Ignore",
 	})
 
+	return btns
+}
+
+func (c *Controller) askForOperationCategory(operation Operation) {
+	budgets, err := c.budgets.List()
+	if err != nil {
+		log.Println(err)
+	}
+
+	btns := c.butgetsToBtns(budgets)
+
 	if msgID, err := c.telegram.AskForOperationCategory(operation, btns); err == nil {
-		c.askingOperations[msgID] = operation
+		c.askingOperations[msgID] = operation.Amount
 	} else {
 		log.Println(err)
 	}
@@ -98,11 +104,18 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 	}
 
 	if val, _ := strconv.Atoi(msg.Text); val != 0 {
-		// if msgID, err := c.telegram.AskForOperationCategory(val, btns); err == nil {
-		// 	c.askingOperations[msgID] = operation
-		// } else {
-		// 	log.Println(err)
-		// }
+		budgets, err := c.budgets.List()
+		if err != nil {
+			log.Println(err)
+		}
+
+		btns := c.butgetsToBtns(budgets)
+
+		if msgID, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err == nil {
+			c.askingOperations[msgID] = float64(val)
+		} else {
+			log.Println(err)
+		}
 	}
 }
 
@@ -112,7 +125,6 @@ func (c *Controller) showBudgetsStat() {
 		c.telegram.SendMessage(err.Error())
 		return
 	}
-
 	lines := make([]string, 0, len(budgets))
 	for _, b := range budgets {
 		lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
@@ -124,7 +136,7 @@ func (c *Controller) showBudgetsStat() {
 }
 
 func (c *Controller) handleBtnReply(reply BtnReply) {
-	op, ok := c.askingOperations[reply.MessageID]
+	opAmount, ok := c.askingOperations[reply.MessageID]
 	if !ok {
 		return
 	}
@@ -134,7 +146,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 		acceptingText = "❌ Ignored"
 	} else {
 		budgetID := reply.Data
-		if err := c.budgets.IncreaseSpent(budgetID, op.Amount); err != nil {
+		if err := c.budgets.IncreaseSpent(budgetID, opAmount); err != nil {
 			log.Println(err)
 			return
 		}

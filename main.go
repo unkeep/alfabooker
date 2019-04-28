@@ -35,7 +35,7 @@ func main() {
 		budgets:          budgets,
 		account:          account,
 		telegram:         tg,
-		askingOperations: make(map[int]Operation),
+		askingOperations: make(map[int]float64),
 		budgetsCache:     make(map[string]string),
 		googleAuthCfg:    googleAuthCfg,
 	}
