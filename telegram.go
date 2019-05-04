@@ -118,7 +118,7 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, btns []Btn)
 }
 
 func (tg *telegramImpl) AskForCustOperationCategory(messageID int, btns []Btn) (int, error) {
-	msg := tgbotapi.NewMessage(tg.chatID, "")
+	msg := tgbotapi.NewMessage(tg.chatID, "Select a category")
 	msg.ReplyToMessageID = messageID
 
 	var rows [][]tgbotapi.InlineKeyboardButton
