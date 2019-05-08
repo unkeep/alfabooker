@@ -201,7 +201,13 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 
 	c.telegram.SendMessage(msg)
 
-	authCode := (<-c.telegram.GetMessagesChan()).Text
+	var authCode string
+	for msg := range c.telegram.GetMessagesChan() {
+		if len(msg.Text) > 10 {
+			authCode = msg.Text
+			break
+		}
+	}
 
 	tok, err := c.googleAuthCfg.Exchange(context.TODO(), authCode)
 	if err != nil {
