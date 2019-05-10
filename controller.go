@@ -122,6 +122,7 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 func (c *Controller) showBudgetsStat() {
 	budgets, err := c.budgets.List()
 	if err != nil {
+		log.Println(err.Error())
 		c.telegram.SendMessage(err.Error())
 		return
 	}
