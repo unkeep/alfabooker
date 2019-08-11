@@ -16,6 +16,7 @@ type Telegram interface {
 	GetBtnReplyChan() <-chan BtnReply
 	SendMessage(text string) error
 	AcceptReply(msgID int, text string) error
+	AcceptReplyWithBtns(msgID int, btns []Btn) error
 }
 
 // TextMsg is a plain text message
@@ -99,14 +100,7 @@ func (tg *telegramImpl) AskForOperationCategory(operation Operation, btns []Btn)
 	msg := tgbotapi.NewMessage(tg.chatID, msgText)
 	msg.ParseMode = tgbotapi.ModeMarkdown
 
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, btn := range btns {
-		tgBtn := tgbotapi.NewInlineKeyboardButtonData(btn.Text, btn.Data)
-		row := []tgbotapi.InlineKeyboardButton{tgBtn}
-		rows = append(rows, row)
-	}
-
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	msg.ReplyMarkup = makeInlineKeyboardMarkup(btns)
 
 	sentMsg, err := tg.bot.Send(msg)
 
@@ -121,14 +115,7 @@ func (tg *telegramImpl) AskForCustOperationCategory(messageID int, btns []Btn) (
 	msg := tgbotapi.NewMessage(tg.chatID, "Select a category")
 	msg.ReplyToMessageID = messageID
 
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, btn := range btns {
-		tgBtn := tgbotapi.NewInlineKeyboardButtonData(btn.Text, btn.Data)
-		row := []tgbotapi.InlineKeyboardButton{tgBtn}
-		rows = append(rows, row)
-	}
-
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	msg.ReplyMarkup = makeInlineKeyboardMarkup(btns)
 
 	sentMsg, err := tg.bot.Send(msg)
 
@@ -137,6 +124,17 @@ func (tg *telegramImpl) AskForCustOperationCategory(messageID int, btns []Btn) (
 	}
 
 	return sentMsg.MessageID, nil
+}
+
+func makeInlineKeyboardMarkup(btns []Btn) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, btn := range btns {
+		tgBtn := tgbotapi.NewInlineKeyboardButtonData(btn.Text, btn.Data)
+		row := []tgbotapi.InlineKeyboardButton{tgBtn}
+		rows = append(rows, row)
+	}
+
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
 func (tg *telegramImpl) SendOperation(operation Operation) error {
@@ -168,6 +166,12 @@ func (tg *telegramImpl) SendMessage(text string) error {
 
 func (tg *telegramImpl) AcceptReply(msgID int, text string) error {
 	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(tg.chatID, msgID, createStatusInlineKeyboardMarkup(text))
+	_, err := tg.bot.Send(keyboardEdit)
+	return err
+}
+
+func (tg *telegramImpl) AcceptReplyWithBtns(msgID int, btns []Btn) error {
+	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(tg.chatID, msgID, makeInlineKeyboardMarkup(btns))
 	_, err := tg.bot.Send(keyboardEdit)
 	return err
 }

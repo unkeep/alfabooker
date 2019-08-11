@@ -32,12 +32,11 @@ func main() {
 	fatalIfErr(err)
 
 	controller := &Controller{
-		budgets:          budgets,
-		account:          account,
-		telegram:         tg,
-		askingOperations: make(map[int]float64),
-		budgetsCache:     make(map[string]string),
-		googleAuthCfg:    googleAuthCfg,
+		budgets:       budgets,
+		account:       account,
+		telegram:      tg,
+		budgetsCache:  make(map[string]string),
+		googleAuthCfg: googleAuthCfg,
 	}
 
 	port := os.Getenv("PORT")

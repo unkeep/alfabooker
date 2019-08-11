@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,15 +16,14 @@ import (
 
 // Controller is an application controller
 type Controller struct {
-	budgets          Budgets
-	account          Account
-	telegram         Telegram
-	askingOperations map[int]float64
-	googleAuthCfg    *oauth2.Config
-	budgetsCache     map[string]string
+	budgets       Budgets
+	account       Account
+	telegram      Telegram
+	googleAuthCfg *oauth2.Config
+	budgetsCache  map[string]string
 }
 
-const ignoreBtnID = "ignoreBtnID"
+const ignoreCategoryID = "ignoreCategoryID"
 
 // Run runs the controller
 func (c *Controller) Run() {
@@ -62,18 +62,29 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	}
 }
 
-func (c *Controller) butgetsToBtns(budgets []Budget) []Btn {
+func (c *Controller) butgetsToBtns(opAmount float64, budgets []Budget) []Btn {
 	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
 		c.budgetsCache[b.ID] = b.Name
+		meta := btnMeta{
+			ActionType:      setCategoryAction,
+			OperationAmount: opAmount,
+			CategotyID:      b.ID,
+		}
 		btns = append(btns, Btn{
-			Data: b.ID,
+			Data: meta.encode(),
 			Text: fmt.Sprintf("%s (%d%%)", b.Name, b.SpentPct),
 		})
 	}
 
+	ignoreCatMeta := btnMeta{
+		ActionType:      setCategoryAction,
+		OperationAmount: opAmount,
+		CategotyID:      ignoreCategoryID,
+	}
+
 	btns = append(btns, Btn{
-		Data: ignoreBtnID,
+		Data: ignoreCatMeta.encode(),
 		Text: "❌ Ignore",
 	})
 
@@ -86,11 +97,9 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 		log.Println(err)
 	}
 
-	btns := c.butgetsToBtns(budgets)
+	btns := c.butgetsToBtns(operation.Amount, budgets)
 
-	if msgID, err := c.telegram.AskForOperationCategory(operation, btns); err == nil {
-		c.askingOperations[msgID] = operation.Amount
-	} else {
+	if _, err := c.telegram.AskForOperationCategory(operation, btns); err != nil {
 		log.Println(err)
 	}
 }
@@ -109,11 +118,9 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 			log.Println(err)
 		}
 
-		btns := c.butgetsToBtns(budgets)
+		btns := c.butgetsToBtns(float64(val), budgets)
 
-		if msgID, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err == nil {
-			c.askingOperations[msgID] = float64(val)
-		} else {
+		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
 			log.Println(err)
 		}
 	}
@@ -137,26 +144,54 @@ func (c *Controller) showBudgetsStat() {
 }
 
 func (c *Controller) handleBtnReply(reply BtnReply) {
-	opAmount, ok := c.askingOperations[reply.MessageID]
-	if !ok {
+	replyBtnMeta, err := decodeBtnMeta(reply.Data)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
-	var acceptingText string
-	if reply.Data == ignoreBtnID {
-		acceptingText = "❌ Ignored"
-	} else {
-		budgetID := reply.Data
-		if err := c.budgets.IncreaseSpent(budgetID, opAmount); err != nil {
+	var acceptBtns []Btn
+
+	if replyBtnMeta.ActionType == setCategoryAction {
+		var acceptingText string
+		if replyBtnMeta.CategotyID == ignoreCategoryID {
+			acceptingText = "❌ Ignored"
+		} else {
+			if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, replyBtnMeta.OperationAmount); err != nil {
+				log.Println(err)
+				return
+			}
+			acceptingText = "✅ " + c.budgetsCache[replyBtnMeta.CategotyID]
+		}
+
+		acceptBtnMeta := btnMeta{
+			ActionType:      editCategoryAction,
+			CategotyID:      replyBtnMeta.CategotyID,
+			OperationAmount: replyBtnMeta.OperationAmount,
+		}
+
+		acceptBtn := Btn{
+			Text: acceptingText,
+			Data: acceptBtnMeta.encode(),
+		}
+
+		acceptBtns = []Btn{acceptBtn}
+	} else if replyBtnMeta.ActionType == editCategoryAction {
+		if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, -replyBtnMeta.OperationAmount); err != nil {
 			log.Println(err)
 			return
 		}
-		acceptingText = "✅ " + c.budgetsCache[budgetID]
+
+		budgets, err := c.budgets.List()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		acceptBtns = c.butgetsToBtns(replyBtnMeta.OperationAmount, budgets)
 	}
 
-	delete(c.askingOperations, reply.MessageID)
-
-	if err := c.telegram.AcceptReply(reply.MessageID, acceptingText); err != nil {
+	if err := c.telegram.AcceptReplyWithBtns(reply.MessageID, acceptBtns); err != nil {
 		log.Println(err)
 	}
 }
@@ -217,3 +252,28 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 
 	return tok
 }
+
+type btnMeta struct {
+	ActionType      string
+	OperationAmount float64
+	CategotyID      string
+}
+
+func (m *btnMeta) encode() string {
+	bytes, _ := json.Marshal(m)
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
+func decodeBtnMeta(btnData string) (*btnMeta, error) {
+	bytes, err := base64.StdEncoding.DecodeString(btnData)
+	if err != nil {
+		return nil, err
+	}
+	m := &btnMeta{}
+	return m, json.Unmarshal(bytes, m)
+}
+
+const (
+	setCategoryAction  = "set"
+	editCategoryAction = "edit"
+)
