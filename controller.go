@@ -62,7 +62,7 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	}
 }
 
-func (c *Controller) butgetsToBtns(opAmount float64, budgets []Budget) []Btn {
+func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
 	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
 		c.budgetsCache[b.ID] = b.Name
@@ -97,7 +97,7 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 		log.Println(err)
 	}
 
-	btns := c.butgetsToBtns(operation.Amount, budgets)
+	btns := c.butgetsToBtns(int(operation.Amount), budgets)
 
 	if _, err := c.telegram.AskForOperationCategory(operation, btns); err != nil {
 		log.Println(err)
@@ -118,7 +118,7 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 			log.Println(err)
 		}
 
-		btns := c.butgetsToBtns(float64(val), budgets)
+		btns := c.butgetsToBtns(val, budgets)
 
 		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
 			log.Println(err)
@@ -254,9 +254,9 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 }
 
 type btnMeta struct {
-	ActionType      string
-	OperationAmount float64
-	CategotyID      string
+	ActionType      string `json:"AT"`
+	OperationAmount int    `json:"am"`
+	CategotyID      string `json:"cat"`
 }
 
 func (m *btnMeta) encode() string {

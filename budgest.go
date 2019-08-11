@@ -22,7 +22,7 @@ type Budget struct {
 // Budgets is an budgets access interface
 type Budgets interface {
 	List() ([]Budget, error)
-	IncreaseSpent(id string, value float64) error
+	IncreaseSpent(id string, value int) error
 	SetClient(client *http.Client) error
 }
 
@@ -79,7 +79,7 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 	return result, nil
 }
 
-func (b *budgetsImpl) IncreaseSpent(id string, value float64) error {
+func (b *budgetsImpl) IncreaseSpent(id string, value int) error {
 	spentCell := "C" + id
 	resp, err := b.srv.Spreadsheets.Values.Get(b.sheetID, spentCell).Do()
 	if err != nil {
