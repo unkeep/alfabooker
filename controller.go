@@ -142,7 +142,7 @@ func (c *Controller) showBudgetsStat() {
 		lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
 	}
         if totalAmount != 0 {
-                totalSpentPct := int(float(totalSpent)/float(totalAmount)*100.0)
+                totalSpentPct := int(float32(totalSpent)/float32(totalAmount)*100.0)
                 lines = append(lines, fmt.Sprintf("TOTAL - %d/%d(%d%%)", totalSpent, totalAmount, totalSpentPct))
         }
 
