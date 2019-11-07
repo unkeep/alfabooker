@@ -134,9 +134,17 @@ func (c *Controller) showBudgetsStat() {
 		return
 	}
 	lines := make([]string, 0, len(budgets))
+        var totalSpent int
+        var totalAmount int
 	for _, b := range budgets {
+                totalSpent += b.Spent
+                totalAmount += b.Amount
 		lines = append(lines, fmt.Sprintf("%s - %d/%d(%d%%)", b.Name, b.Spent, b.Amount, b.SpentPct))
 	}
+        if totalAmount != 0 {
+                totalSpentPct := int(float(totalSpent)/float(totalAmount)*100.0)
+                lines = append(lines, fmt.Sprintf("TOTAL - %d/%d(%d%%)", totalSpent, totalAmount, totalSpentPct))
+        }
 
 	if err := c.telegram.SendMessage(strings.Join(lines, "\n")); err != nil {
 		log.Println(err)
