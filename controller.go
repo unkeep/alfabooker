@@ -139,11 +139,11 @@ func (c *Controller) showBudgetsStat() {
 	for _, b := range budgets {
                 totalSpent += b.Spent
                 totalAmount += b.Amount
-		lines = append(lines, fmt.Sprintf("%s - %d(%d%%)", b.Name, b.Amount - b.Spent, b.SpentPct))
+		lines = append(lines, fmt.Sprintf("%s %d(%d%%)", b.Name, b.Amount - b.Spent, b.SpentPct))
 	}
         if totalAmount != 0 {
                 totalSpentPct := int(float32(totalSpent)/float32(totalAmount)*100.0)
-                lines = append(lines, fmt.Sprintf("TOTAL - %d(%d%%)", totalAmount - totalSpent, totalSpentPct))
+                lines = append(lines, fmt.Sprintf("TOTAL %d(%d%%)", totalAmount - totalSpent, totalSpentPct))
         }
 
 	if err := c.telegram.SendMessage(strings.Join(lines, "\n")); err != nil {
