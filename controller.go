@@ -137,20 +137,20 @@ func (c *Controller) showBudgetsStat() {
 	var totalSpent int
 	var totalAmount int
 	for _, b := range budgets {
-		totalSpent += b.Spent
-		totalAmount += b.Amount
 		rest := b.Amount - b.Spent
-		restPct := 100 - b.SpentPct
+		restPct := int(float32(rest) / float32(b.Amount) * 100.0)
 		line := fmt.Sprintf("%s  %d(%d%%)", b.Name, rest, restPct)
 		if rest < 0 {
 			line += " ⚠️"
 		}
 		lines = append(lines, line)
+
+		totalSpent += b.Spent
+		totalAmount += b.Amount
 	}
 	if totalAmount != 0 {
-		totalSpentPct := int(float32(totalSpent) / float32(totalAmount) * 100.0)
-		totalRestPct := 100 - totalSpentPct
 		totalRest := totalAmount - totalSpent
+		totalRestPct := int(float32(totalRest) / float32(totalAmount) * 100.0)
 		line := fmt.Sprintf("TOTAL  %d(%d%%)", totalRest, totalRestPct)
 		lines = append(lines, line)
 	}
