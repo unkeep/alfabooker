@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"google.golang.org/api/sheets/v4"
 )
@@ -52,9 +51,6 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 		}
 
 		name, _ := row[0].(string)
-		if name == "" || strings.HasPrefix(name, ".") {
-			continue
-		}
 
 		amountStr, _ := row[1].(string)
 		amount, _ := strconv.Atoi(amountStr)

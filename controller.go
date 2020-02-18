@@ -65,15 +65,22 @@ func (c *Controller) handleNewOperation(operation Operation) {
 func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
 	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
+		if strings.HasPrefix(b.Name, ".") {
+			continue
+		}
+
 		c.budgetsCache[b.ID] = b.Name
 		meta := btnMeta{
 			ActionType:      setCategoryAction,
 			OperationAmount: opAmount,
 			CategotyID:      b.ID,
 		}
+
+		restPct := int(float32(b.Amount-b.Spent) / float32(b.Amount) * 100.0)
+
 		btns = append(btns, Btn{
 			Data: meta.encode(),
-			Text: fmt.Sprintf("%s (%d%%)", b.Name, b.SpentPct),
+			Text: fmt.Sprintf("%s (%d%%)", b.Name, restPct),
 		})
 	}
 
@@ -139,9 +146,10 @@ func (c *Controller) showBudgetsStat() {
 	for _, b := range budgets {
 		rest := b.Amount - b.Spent
 		restPct := int(float32(rest) / float32(b.Amount) * 100.0)
-		line := fmt.Sprintf("%s  %d(%d%%)", b.Name, rest, restPct)
+		name := strings.TrimPrefix(b.Name, ".")
+		line := fmt.Sprintf("%s %d/%d(%d%%)", name, rest, b.Amount, restPct)
 		if rest < 0 {
-			line += " ⚠️"
+			line += "⚠️"
 		}
 		lines = append(lines, line)
 
@@ -151,7 +159,7 @@ func (c *Controller) showBudgetsStat() {
 	if totalAmount != 0 {
 		totalRest := totalAmount - totalSpent
 		totalRestPct := int(float32(totalRest) / float32(totalAmount) * 100.0)
-		line := fmt.Sprintf("TOTAL  %d(%d%%)", totalRest, totalRestPct)
+		line := fmt.Sprintf("TOTAL  %d/%d(%d%%)", totalRest, totalAmount, totalRestPct)
 		lines = append(lines, line)
 	}
 
