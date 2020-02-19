@@ -76,11 +76,11 @@ func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
 			CategotyID:      b.ID,
 		}
 
-		restPct := int(float32(b.Amount-b.Spent) / float32(b.Amount) * 100.0)
+		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100.0)
 
 		btns = append(btns, Btn{
 			Data: meta.encode(),
-			Text: fmt.Sprintf("%s (%d%%)", b.Name, restPct),
+			Text: fmt.Sprintf("%s (%d%%)", b.Name, spentPct),
 		})
 	}
 
@@ -144,11 +144,10 @@ func (c *Controller) showBudgetsStat() {
 	var totalSpent int
 	var totalAmount int
 	for _, b := range budgets {
-		rest := b.Amount - b.Spent
-		restPct := int(float32(rest) / float32(b.Amount) * 100.0)
+		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100)
 		name := strings.TrimPrefix(b.Name, ".")
-		line := fmt.Sprintf("%s %d/%d(%d%%)", name, rest, b.Amount, restPct)
-		if rest < 0 {
+		line := fmt.Sprintf("%s %d/%d(%d%%)", name, b.Spent, b.Amount, spentPct)
+		if b.Spent > b.Amount {
 			line += "⚠️"
 		}
 		lines = append(lines, line)
@@ -157,10 +156,10 @@ func (c *Controller) showBudgetsStat() {
 		totalAmount += b.Amount
 	}
 	if totalAmount != 0 {
-		totalRest := totalAmount - totalSpent
-		totalRestPct := int(float32(totalRest) / float32(totalAmount) * 100.0)
-		line := fmt.Sprintf("TOTAL  %d/%d(%d%%)", totalRest, totalAmount, totalRestPct)
+		totalSpentPct := int(float32(totalSpent) / float32(totalAmount) * 100.0)
+		line := fmt.Sprintf("TOTAL %d/%d(%d%%)", totalSpent, totalAmount, totalSpentPct)
 		lines = append(lines, line)
+		lines = append(lines, fmt.Sprintf("BALANCE %d", totalAmount-totalSpent))
 	}
 
 	if err := c.telegram.SendMessage(strings.Join(lines, "\n")); err != nil {
