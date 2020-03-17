@@ -9,6 +9,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/unkeep/alfabooker/mongo"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -21,6 +26,7 @@ type Controller struct {
 	telegram      Telegram
 	googleAuthCfg *oauth2.Config
 	budgetsCache  map[string]string
+	operationsDB  *mongo.OperationCollection
 }
 
 const ignoreCategoryID = "ignoreCategoryID"
@@ -56,13 +62,24 @@ func (c *Controller) Run() {
 
 func (c *Controller) handleNewOperation(operation Operation) {
 	if operation.Type == DecreasingOperation && operation.Success {
+		err := c.operationsDB.Save(context.TODO(), mongo.Operation{
+			ID:      operation.ID,
+			Amount:  operation.Amount,
+			Balance: operation.Balance,
+			RawText: operation.Description,
+			Success: operation.Success,
+			Time:    time.Now(),
+		})
+		if err != nil {
+			log.Println(err)
+		}
 		c.askForOperationCategory(operation)
 	} else {
 		c.telegram.SendOperation(operation)
 	}
 }
 
-func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
+func (c *Controller) butgetsToBtns(opID string, budgets []Budget) []Btn {
 	btns := make([]Btn, 0, len(budgets)+1)
 	for _, b := range budgets {
 		if strings.HasPrefix(b.Name, ".") {
@@ -71,9 +88,9 @@ func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
 
 		c.budgetsCache[b.ID] = b.Name
 		meta := btnMeta{
-			ActionType:      setCategoryAction,
-			OperationAmount: opAmount,
-			CategotyID:      b.ID,
+			ActionType:  setCategoryAction,
+			OperationID: opID,
+			CategotyID:  b.ID,
 		}
 
 		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100.0)
@@ -85,9 +102,9 @@ func (c *Controller) butgetsToBtns(opAmount int, budgets []Budget) []Btn {
 	}
 
 	ignoreCatMeta := btnMeta{
-		ActionType:      setCategoryAction,
-		OperationAmount: opAmount,
-		CategotyID:      ignoreCategoryID,
+		ActionType:  setCategoryAction,
+		OperationID: opID,
+		CategotyID:  ignoreCategoryID,
 	}
 
 	btns = append(btns, Btn{
@@ -104,7 +121,7 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 		log.Println(err)
 	}
 
-	btns := c.butgetsToBtns(int(operation.Amount), budgets)
+	btns := c.butgetsToBtns(operation.ID, budgets)
 
 	if _, err := c.telegram.AskForOperationCategory(operation, btns); err != nil {
 		log.Println(err)
@@ -125,7 +142,12 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 			log.Println(err)
 		}
 
-		btns := c.butgetsToBtns(val, budgets)
+		opID, err := uuid.NewUUID()
+		if err != nil {
+			log.Println(err)
+		}
+
+		btns := c.butgetsToBtns(opID.String(), budgets)
 
 		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
 			log.Println(err)
@@ -278,9 +300,9 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 }
 
 type btnMeta struct {
-	ActionType      string `json:"AT"`
-	OperationAmount int    `json:"am"`
-	CategotyID      string `json:"cat"`
+	ActionType  string `json:"AT"`
+	OperationID string `json:id"`
+	CategotyID  string `json:"cat"`
 }
 
 func (m *btnMeta) encode() string {

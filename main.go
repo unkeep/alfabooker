@@ -33,7 +33,7 @@ func main() {
 	googleAuthCfg, err := getGoogleAuthConfig(cfg)
 	fatalIfErr(err)
 
-	_, err = mongo.GetClient(context.Background(), cfg.MongoURI)
+	mongoClient, err := mongo.GetClient(context.Background(), cfg.MongoURI)
 	fatalIfErr(err)
 
 	controller := &Controller{
@@ -42,6 +42,7 @@ func main() {
 		telegram:      tg,
 		budgetsCache:  make(map[string]string),
 		googleAuthCfg: googleAuthCfg,
+		operationsDB:  mongo.GetOperationCollection(mongoClient),
 	}
 
 	port := os.Getenv("PORT")
