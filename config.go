@@ -12,6 +12,7 @@ type Config struct {
 	GClientID     string `required:"true"`
 	GClientSecret string `required:"true"`
 	GProjectID    string `required:"true"`
+	MongoURI      string `required:"true"`
 }
 
 // GetConfig gets a config from env vars

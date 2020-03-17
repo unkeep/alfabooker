@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/unkeep/alfabooker/mongo"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
@@ -29,6 +31,9 @@ func main() {
 	fatalIfErr(err)
 
 	googleAuthCfg, err := getGoogleAuthConfig(cfg)
+	fatalIfErr(err)
+
+	_, err = mongo.GetClient(context.Background(), cfg.MongoURI)
 	fatalIfErr(err)
 
 	controller := &Controller{
