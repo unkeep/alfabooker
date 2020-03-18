@@ -162,12 +162,26 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 		opID, err := uuid.NewUUID()
 		if err != nil {
 			log.Println(err)
+			return
 		}
 
-		btns := c.butgetsToBtns(opID.String()[:7], budgets)
+		op := mongo.Operation{
+			ID:      opID.String(),
+			Amount:  float64(val),
+			RawText: "custom operation: " + msg.Text,
+			Success: true,
+			Time:    time.Now(),
+		}
+
+		if err := c.operationsDB.Save(context.Background(), op); err != nil {
+			log.Println("operationsDB.Save: ", err.Error())
+			return
+		}
+
+		btns := c.butgetsToBtns(op.ID, budgets)
 
 		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
-			log.Println(err)
+			log.Println("telegram.AskForCustOperationCategory: ", err.Error())
 		}
 	}
 }
