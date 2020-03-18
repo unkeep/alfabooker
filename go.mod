@@ -3,8 +3,6 @@ module github.com/unkeep/alfabooker
 go 1.13
 
 require (
-	github.com/emersion/go-imap v1.0.0-beta.2
-	github.com/emersion/go-message v0.9.2
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/uuid v1.1.1
 	github.com/kelseyhightower/envconfig v1.3.0

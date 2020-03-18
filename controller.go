@@ -61,8 +61,15 @@ func (c *Controller) Run() {
 }
 
 func (c *Controller) handleNewOperation(operation Operation) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	if _, err := c.operationsDB.GetOne(ctx, operation.ID); err != mongo.ErrNotFound {
+		return
+	}
+
 	if operation.Type == DecreasingOperation && operation.Success {
-		err := c.operationsDB.Save(context.TODO(), mongo.Operation{
+		err := c.operationsDB.Save(ctx, mongo.Operation{
 			ID:      operation.ID,
 			Amount:  operation.Amount,
 			Balance: operation.Balance,
@@ -147,7 +154,7 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 			log.Println(err)
 		}
 
-		btns := c.butgetsToBtns(opID.String(), budgets)
+		btns := c.butgetsToBtns(opID.String()[:7], budgets)
 
 		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
 			log.Println(err)
@@ -190,7 +197,16 @@ func (c *Controller) showBudgetsStat() {
 }
 
 func (c *Controller) handleBtnReply(reply BtnReply) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
 	replyBtnMeta, err := decodeBtnMeta(reply.Data)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	op, err := c.operationsDB.GetOne(ctx, replyBtnMeta.OperationID)
 	if err != nil {
 		log.Println(err)
 		return
@@ -203,17 +219,21 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 		if replyBtnMeta.CategotyID == ignoreCategoryID {
 			acceptingText = "❌ Ignored"
 		} else {
-			if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, replyBtnMeta.OperationAmount); err != nil {
+			if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, int(-op.Amount)); err != nil {
 				log.Println(err)
 				return
 			}
 			acceptingText = "✅ " + c.budgetsCache[replyBtnMeta.CategotyID]
+			op.Category = c.budgetsCache[replyBtnMeta.CategotyID]
+			if err := c.operationsDB.Save(ctx, op); err != nil {
+				log.Println(err)
+			}
 		}
 
 		acceptBtnMeta := btnMeta{
-			ActionType:      editCategoryAction,
-			CategotyID:      replyBtnMeta.CategotyID,
-			OperationAmount: replyBtnMeta.OperationAmount,
+			ActionType:  editCategoryAction,
+			CategotyID:  replyBtnMeta.CategotyID,
+			OperationID: op.ID,
 		}
 
 		acceptBtn := Btn{
@@ -223,7 +243,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 
 		acceptBtns = []Btn{acceptBtn}
 	} else if replyBtnMeta.ActionType == editCategoryAction {
-		if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, -replyBtnMeta.OperationAmount); err != nil {
+		if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, -int(op.Amount)); err != nil {
 			log.Println(err)
 			return
 		}
@@ -234,7 +254,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 			return
 		}
 
-		acceptBtns = c.butgetsToBtns(replyBtnMeta.OperationAmount, budgets)
+		acceptBtns = c.butgetsToBtns(op.ID, budgets)
 	}
 
 	if err := c.telegram.AcceptReplyWithBtns(reply.MessageID, acceptBtns); err != nil {
@@ -301,8 +321,8 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 
 type btnMeta struct {
 	ActionType  string `json:"AT"`
-	OperationID string `json:id"`
-	CategotyID  string `json:"cat"`
+	OperationID string `json:"ID"`
+	CategotyID  string `json:"C"`
 }
 
 func (m *btnMeta) encode() string {
