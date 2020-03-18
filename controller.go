@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"compress/zlib"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -30,9 +26,10 @@ type Controller struct {
 	googleAuthCfg *oauth2.Config
 	budgetsCache  map[string]string
 	operationsDB  *mongo.OperationCollection
+	btnsMetaDB    *mongo.BtnMetaCollection
 }
 
-const ignoreCategoryID = "ignoreCategoryID"
+const ignoreBtnCategory = "ignoreCategoryID"
 
 // Run runs the controller
 func (c *Controller) Run() {
@@ -90,37 +87,47 @@ func (c *Controller) handleNewOperation(operation Operation) {
 }
 
 func (c *Controller) butgetsToBtns(opID string, budgets []Budget) []Btn {
+	btnMetas := make([]mongo.BtnMeta, 0, len(budgets))
 	btns := make([]Btn, 0, len(budgets)+1)
+
 	for _, b := range budgets {
 		if strings.HasPrefix(b.Name, ".") {
 			continue
 		}
 
 		c.budgetsCache[b.ID] = b.Name
-		meta := btnMeta{
+		meta := mongo.BtnMeta{
 			ActionType:  setCategoryAction,
 			OperationID: opID,
 			CategotyID:  b.ID,
 		}
 
-		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100.0)
+		btnMetas = append(btnMetas, meta)
 
+		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100.0)
 		btns = append(btns, Btn{
-			Data: meta.encode(),
 			Text: fmt.Sprintf("%s (%d%%)", b.Name, spentPct),
 		})
 	}
 
-	ignoreCatMeta := btnMeta{
+	btnMetas = append(btnMetas, mongo.BtnMeta{
 		ActionType:  setCategoryAction,
 		OperationID: opID,
-		CategotyID:  ignoreCategoryID,
-	}
+		CategotyID:  ignoreBtnCategory,
+	})
 
 	btns = append(btns, Btn{
-		Data: ignoreCatMeta.encode(),
 		Text: "❌ Ignore",
 	})
+
+	ids, err := c.btnsMetaDB.AddBatch(context.Background(), btnMetas)
+	if err != nil {
+		log.Println(err)
+	}
+
+	for i, id := range ids {
+		btns[i].Data = id
+	}
 
 	return btns
 }
@@ -203,13 +210,13 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	replyBtnMeta, err := decodeBtnMeta(reply.Data)
+	btnMeta, err := c.btnsMetaDB.GetOne(ctx, reply.Data)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	op, err := c.operationsDB.GetOne(ctx, replyBtnMeta.OperationID)
+	op, err := c.operationsDB.GetOne(ctx, btnMeta.OperationID)
 	if err != nil {
 		log.Println(err)
 		return
@@ -217,36 +224,42 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 
 	var acceptBtns []Btn
 
-	if replyBtnMeta.ActionType == setCategoryAction {
+	if btnMeta.ActionType == setCategoryAction {
 		var acceptingText string
-		if replyBtnMeta.CategotyID == ignoreCategoryID {
+		if btnMeta.CategotyID == ignoreBtnCategory {
 			acceptingText = "❌ Ignored"
 		} else {
-			if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, int(-op.Amount)); err != nil {
+			if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, int(-op.Amount)); err != nil {
 				log.Println(err)
 				return
 			}
-			acceptingText = "✅ " + c.budgetsCache[replyBtnMeta.CategotyID]
-			op.Category = c.budgetsCache[replyBtnMeta.CategotyID]
+			acceptingText = "✅ " + c.budgetsCache[btnMeta.CategotyID]
+			op.Category = c.budgetsCache[btnMeta.CategotyID]
 			if err := c.operationsDB.Save(ctx, op); err != nil {
 				log.Println(err)
 			}
 		}
 
-		acceptBtnMeta := btnMeta{
+		acceptBtnMeta := mongo.BtnMeta{
 			ActionType:  editCategoryAction,
-			CategotyID:  replyBtnMeta.CategotyID,
+			CategotyID:  btnMeta.CategotyID,
 			OperationID: op.ID,
+		}
+
+		ids, err := c.btnsMetaDB.AddBatch(ctx, []mongo.BtnMeta{acceptBtnMeta})
+		if err != nil {
+			log.Println(err)
+			return
 		}
 
 		acceptBtn := Btn{
 			Text: acceptingText,
-			Data: acceptBtnMeta.encode(),
+			Data: ids[0],
 		}
 
 		acceptBtns = []Btn{acceptBtn}
-	} else if replyBtnMeta.ActionType == editCategoryAction {
-		if err := c.budgets.IncreaseSpent(replyBtnMeta.CategotyID, -int(op.Amount)); err != nil {
+	} else if btnMeta.ActionType == editCategoryAction {
+		if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, -int(op.Amount)); err != nil {
 			log.Println(err)
 			return
 		}
@@ -320,42 +333,6 @@ func (c *Controller) getTokenFromWeb() *oauth2.Token {
 	}
 
 	return tok
-}
-
-type btnMeta struct {
-	ActionType  string `json:"AT"`
-	OperationID string `json:"ID"`
-	CategotyID  string `json:"C"`
-}
-
-func (m *btnMeta) encode() string {
-	jsonBytes, _ := json.Marshal(m)
-	var buff bytes.Buffer
-	zipper, _ := zlib.NewWriterLevel(&buff, zlib.BestCompression)
-	zipper.Write(jsonBytes)
-	zipper.Close()
-	return base64.StdEncoding.EncodeToString(buff.Bytes())
-}
-
-func decodeBtnMeta(btnData string) (*btnMeta, error) {
-	b64, err := base64.StdEncoding.DecodeString(btnData)
-	if err != nil {
-		return nil, err
-	}
-
-	zipper, err := zlib.NewReader(bytes.NewReader(b64))
-	if err != nil {
-		return nil, err
-	}
-	defer zipper.Close()
-
-	var buff bytes.Buffer
-	if _, err := io.Copy(&buff, zipper); err != nil {
-		return nil, err
-	}
-
-	m := &btnMeta{}
-	return m, json.Unmarshal(buff.Bytes(), m)
 }
 
 const (

@@ -43,6 +43,7 @@ func main() {
 		budgetsCache:  make(map[string]string),
 		googleAuthCfg: googleAuthCfg,
 		operationsDB:  mongo.GetOperationCollection(mongoClient),
+		btnsMetaDB:    mongo.GetBtnMetaCollection(mongoClient),
 	}
 
 	port := os.Getenv("PORT")

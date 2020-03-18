@@ -9,7 +9,7 @@ import (
 
 const mongoURI = "mongodb+srv://test:testtest@cluster0-z78de.mongodb.net/test?retryWrites=true&w=majority"
 
-func TestUpdateGet(t *testing.T) {
+func TestOperationUpdateGet(t *testing.T) {
 	cli, err := GetClient(context.Background(), mongoURI)
 	if err != nil {
 		t.Fatal(err)
