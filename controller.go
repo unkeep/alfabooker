@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -326,17 +329,33 @@ type btnMeta struct {
 }
 
 func (m *btnMeta) encode() string {
-	bytes, _ := json.Marshal(m)
-	return base64.StdEncoding.EncodeToString(bytes)
+	jsonBytes, _ := json.Marshal(m)
+	var buff bytes.Buffer
+	zipper, _ := zlib.NewWriterLevel(&buff, zlib.BestCompression)
+	zipper.Write(jsonBytes)
+	zipper.Close()
+	return base64.StdEncoding.EncodeToString(buff.Bytes())
 }
 
 func decodeBtnMeta(btnData string) (*btnMeta, error) {
-	bytes, err := base64.StdEncoding.DecodeString(btnData)
+	b64, err := base64.StdEncoding.DecodeString(btnData)
 	if err != nil {
 		return nil, err
 	}
+
+	zipper, err := zlib.NewReader(bytes.NewReader(b64))
+	if err != nil {
+		return nil, err
+	}
+	defer zipper.Close()
+
+	var buff bytes.Buffer
+	if _, err := io.Copy(&buff, zipper); err != nil {
+		return nil, err
+	}
+
 	m := &btnMeta{}
-	return m, json.Unmarshal(bytes, m)
+	return m, json.Unmarshal(buff.Bytes(), m)
 }
 
 const (
