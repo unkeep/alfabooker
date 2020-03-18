@@ -1,10 +1,15 @@
-FROM golang:1.13-stretch
-WORKDIR /go/alfabooker
+FROM golang:1.13
+WORKDIR /app
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build ./...
+RUN go build .
 
-FROM alpine:latest
-WORKDIR /root/
-COPY --from=0 /go/alfabooker/alfabooker .
+FROM debian:10.0-slim
+
+RUN apt-get update
+RUN apt-get install -y ca-certificates
+RUN rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=0 /app/alfabooker .
 EXPOSE 8080
 CMD ["./alfabooker"]
