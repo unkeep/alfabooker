@@ -243,7 +243,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 		if btnMeta.CategotyID == ignoreBtnCategory {
 			acceptingText = "❌ Ignored"
 		} else {
-			if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, int(-op.Amount)); err != nil {
+			if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, int(op.Amount)); err != nil {
 				log.Println(err)
 				return
 			}
