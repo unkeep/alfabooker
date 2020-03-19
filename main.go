@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/unkeep/alfabooker/mongo"
 	"golang.org/x/oauth2"
@@ -52,6 +53,8 @@ func main() {
 	}
 
 	go http.ListenAndServe("0.0.0.0:"+port, nil)
+
+	time.Sleep(time.Second * 15)
 	controller.Run()
 }
 
