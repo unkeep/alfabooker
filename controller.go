@@ -273,9 +273,11 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 
 		acceptBtns = []Btn{acceptBtn}
 	} else if btnMeta.ActionType == editCategoryAction {
-		if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, -int(op.Amount)); err != nil {
-			log.Println(err)
-			return
+		if btnMeta.CategotyID != ignoreBtnCategory {
+			if err := c.budgets.IncreaseSpent(btnMeta.CategotyID, -int(op.Amount)); err != nil {
+				log.Println(err)
+				return
+			}
 		}
 
 		budgets, err := c.budgets.List()
