@@ -1,4 +1,4 @@
-package mongo
+package db
 
 import (
 	"context"
@@ -16,25 +16,25 @@ type BtnMeta struct {
 	CategotyID  string
 }
 
-// BtnMetaCollection priovides bt metas access methods
-type BtnMetaCollection struct {
+// BtnMetaRepo priovides bt metas access methods
+type BtnMetaRepo struct {
 	c *mongo.Collection
 }
 
-// GetBtnMetaCollection contructs a BtnMetaCollection
-func GetBtnMetaCollection(cli *Client) *BtnMetaCollection {
-	return &BtnMetaCollection{c: cli.database.Collection("btnmeta")}
+// GetBtnMetaRepo contructs a BtnMetaRepo
+func GetBtnMetaRepo(cli *Client) *BtnMetaRepo {
+	return &BtnMetaRepo{c: cli.database.Collection("btnmeta")}
 }
 
 // GetOne gets btnBeta by id
-func (c *BtnMetaCollection) GetOne(ctx context.Context, id string) (BtnMeta, error) {
+func (r *BtnMetaRepo) GetOne(ctx context.Context, id string) (BtnMeta, error) {
 	var btn BtnMeta
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return btn, err
 	}
 	filter := bson.M{"_id": objID}
-	res := c.c.FindOne(ctx, filter)
+	res := r.c.FindOne(ctx, filter)
 	if res.Err() != nil {
 		return btn, res.Err()
 	}
@@ -47,13 +47,13 @@ func (c *BtnMetaCollection) GetOne(ctx context.Context, id string) (BtnMeta, err
 }
 
 // AddBatch adds btns meta batch
-func (c *BtnMetaCollection) AddBatch(ctx context.Context, batch []BtnMeta) ([]string, error) {
+func (r *BtnMetaRepo) AddBatch(ctx context.Context, batch []BtnMeta) ([]string, error) {
 	docs := make([]interface{}, 0, len(batch))
 	for _, btn := range batch {
 		docs = append(docs, btn)
 	}
 
-	res, err := c.c.InsertMany(ctx, docs)
+	res, err := r.c.InsertMany(ctx, docs)
 	if err != nil {
 		return nil, err
 	}

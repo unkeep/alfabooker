@@ -43,8 +43,8 @@ func main() {
 		telegram:      tg,
 		budgetsCache:  make(map[string]string),
 		googleAuthCfg: googleAuthCfg,
-		operationsDB:  mongo.GetOperationCollection(mongoClient),
-		btnsMetaDB:    mongo.GetBtnMetaCollection(mongoClient),
+		operationsDB:  mongo.GetOperationsRepo(mongoClient),
+		btnsMetaDB:    mongo.GetBtnMetaRepo(mongoClient),
 	}
 
 	port := os.Getenv("PORT")

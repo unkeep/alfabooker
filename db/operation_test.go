@@ -1,4 +1,4 @@
-package mongo
+package db
 
 import (
 	"context"
@@ -16,7 +16,7 @@ func TestOperationUpdateGet(t *testing.T) {
 	}
 	defer cli.client.Disconnect(context.Background())
 
-	coll := GetOperationCollection(cli)
+	coll := GetOperationsRepo(cli)
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
 

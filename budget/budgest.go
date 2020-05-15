@@ -9,37 +9,27 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-// Budget is a budget info
-type Budget struct {
-	ID       string
-	Name     string
-	Amount   int
-	Spent    int
-	SpentPct uint8
-}
+// New creates budgest instance from google sheets source
+func New(client *http.Client, sheetID string) (Budgets, error) {
+	sheetsSrv, err := sheets.New(client)
+	if err != nil {
+		return fmt.Errorf("sheets.New: %w", err)
+	}
 
-// Budgets is an budgets access interface
-type Budgets interface {
-	List() ([]Budget, error)
-	IncreaseSpent(id string, value int) error
-	SetClient(client *http.Client) error
-}
-
-// GetBudgets creates budgest instance from google sheets source
-func GetBudgets(sheetID string) (Budgets, error) {
 	return &budgetsImpl{
-		sheetID: sheetID,
+		sheetsSrv: sheetsSrv,
+		sheetID:   sheetID,
 	}, nil
 }
 
 type budgetsImpl struct {
-	srv     *sheets.Service
-	sheetID string
+	sheetsSrv *sheets.Service
+	sheetID   string
 }
 
 func (b *budgetsImpl) List() ([]Budget, error) {
 	readRange := "A1:D14"
-	resp, err := b.srv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
+	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +67,7 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 
 func (b *budgetsImpl) IncreaseSpent(id string, value int) error {
 	spentCell := "C" + id
-	resp, err := b.srv.Spreadsheets.Values.Get(b.sheetID, spentCell).Do()
+	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, spentCell).Do()
 	if err != nil {
 		return err
 	}
@@ -102,20 +92,10 @@ func (b *budgetsImpl) IncreaseSpent(id string, value int) error {
 	update.MajorDimension = "ROWS"
 	update.Values = [][]interface{}{{spentValue}}
 
-	call := b.srv.Spreadsheets.Values.Update(b.sheetID, spentCell, update)
+	call := b.sheetsSrv.Spreadsheets.Values.Update(b.sheetID, spentCell, update)
 	call.ValueInputOption("RAW")
 
 	_, err = call.Do()
 
 	return err
-}
-
-func (b *budgetsImpl) SetClient(client *http.Client) error {
-	srv, err := sheets.New(client)
-	if err != nil {
-		return err
-	}
-	b.srv = srv
-
-	return nil
 }

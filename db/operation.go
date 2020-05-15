@@ -1,4 +1,4 @@
-package mongo
+package db
 
 import (
 	"context"
@@ -22,13 +22,13 @@ type Operation struct {
 	Category string
 }
 
-// GetOperationCollection contructs a OperationCollection
-func GetOperationCollection(cli *Client) *OperationCollection {
-	return &OperationCollection{c: cli.database.Collection("operations")}
+// GetOperationsRepo contructs a OperationsRepo
+func GetOperationsRepo(cli *Client) *OperationsRepo {
+	return &OperationsRepo{c: cli.database.Collection("operations")}
 }
 
-// OperationCollection priovides operations access methods
-type OperationCollection struct {
+// OperationsRepo priovides operations access methods
+type OperationsRepo struct {
 	c *mongo.Collection
 }
 
@@ -36,7 +36,7 @@ type OperationCollection struct {
 var ErrNotFound = mongo.ErrNoDocuments
 
 // GetOne gets an operation with the given ID
-func (c *OperationCollection) GetOne(ctx context.Context, id string) (Operation, error) {
+func (c *OperationsRepo) GetOne(ctx context.Context, id string) (Operation, error) {
 	filter := bson.M{"_id": id}
 	res := c.c.FindOne(ctx, filter)
 	var op Operation
@@ -52,7 +52,7 @@ func (c *OperationCollection) GetOne(ctx context.Context, id string) (Operation,
 }
 
 // Save saves an operation
-func (c *OperationCollection) Save(ctx context.Context, op Operation) error {
+func (c *OperationsRepo) Save(ctx context.Context, op Operation) error {
 	filter := bson.M{"_id": op.ID}
 	upd := bson.M{"$set": op}
 	upsert := true

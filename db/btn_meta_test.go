@@ -1,4 +1,4 @@
-package mongo
+package db
 
 import (
 	"context"
@@ -13,7 +13,7 @@ func TestBtnMetaAddGet(t *testing.T) {
 	}
 	defer cli.client.Disconnect(context.Background())
 
-	coll := GetBtnMetaCollection(cli)
+	coll := GetBtnMetaRepo(cli)
 
 	batch := []BtnMeta{
 		{

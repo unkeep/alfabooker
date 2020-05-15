@@ -10,23 +10,44 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/unkeep/alfabooker/account"
+	"github.com/unkeep/alfabooker/budget"
+	"github.com/unkeep/alfabooker/db"
+	"github.com/unkeep/alfabooker/tg"
 
-	"github.com/unkeep/alfabooker/mongo"
+	"github.com/google/uuid"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
+// Account is an account interface
+type Account interface {
+	GetOperationsRepoChan() <-chan account.Operation
+	SetClient(client *http.Client) error
+}
+
+// Budgets is an budgets access interface
+type Budgets interface {
+	List() ([]budget.Budget, error)
+	IncreaseSpent(id string, value int) error
+}
+
+// TgGroup is an telegram group bot interface
+type TgGroup interface {
+	SendMessage(m BotMessage) (int, error)
+	EditBtns(msgID int, newBtns []Btn) error
+	GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan<- BtnClick) error
+}
+
 // Controller is an application controller
 type Controller struct {
-	budgets       Budgets
-	account       Account
-	telegram      Telegram
+	tgGroup TgGroup
+
 	googleAuthCfg *oauth2.Config
 	budgetsCache  map[string]string
-	operationsDB  *mongo.OperationCollection
-	btnsMetaDB    *mongo.BtnMetaCollection
+	operationsDB  *db.OperationsRepo
+	btnsMetaDB    *db.BtnMetaRepo
 }
 
 const ignoreBtnCategory = "ignoreCategoryID"
@@ -34,9 +55,9 @@ const ignoreBtnCategory = "ignoreCategoryID"
 // Run runs the controller
 func (c *Controller) Run() {
 
-	msgChan := c.telegram.GetMessagesChan()
-	btnReplyChan := c.telegram.GetBtnReplyChan()
-	opChan := c.account.GetOperationsChan()
+	msgChan := c.tgGroup.GetMessagesChan()
+	btnReplyChan := c.tgGroup.GetBtnReplyChan()
+	opChan := c.account.GetOperationsRepoChan()
 
 	googleClient := c.getGoogleClient()
 
@@ -64,12 +85,12 @@ func (c *Controller) handleNewOperation(operation Operation) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	if _, err := c.operationsDB.GetOne(ctx, operation.ID); err != mongo.ErrNotFound {
+	if _, err := c.operationsDB.GetOne(ctx, operation.ID); err != db.ErrNotFound {
 		return
 	}
 
 	if operation.Type == DecreasingOperation && operation.Success {
-		err := c.operationsDB.Save(ctx, mongo.Operation{
+		err := c.operationsDB.Save(ctx, db.Operation{
 			ID:      operation.ID,
 			Amount:  operation.Amount,
 			Balance: operation.Balance,
@@ -82,12 +103,12 @@ func (c *Controller) handleNewOperation(operation Operation) {
 		}
 		c.askForOperationCategory(operation)
 	} else {
-		c.telegram.SendOperation(operation)
+		c.tgGroup.SendOperation(operation)
 	}
 }
 
 func (c *Controller) butgetsToBtns(opID string, budgets []Budget) []Btn {
-	btnMetas := make([]mongo.BtnMeta, 0, len(budgets))
+	btnMetas := make([]db.BtnMeta, 0, len(budgets))
 	btns := make([]Btn, 0, len(budgets)+1)
 
 	for _, b := range budgets {
@@ -96,7 +117,7 @@ func (c *Controller) butgetsToBtns(opID string, budgets []Budget) []Btn {
 		}
 
 		c.budgetsCache[b.ID] = b.Name
-		meta := mongo.BtnMeta{
+		meta := db.BtnMeta{
 			ActionType:  setCategoryAction,
 			OperationID: opID,
 			CategotyID:  b.ID,
@@ -110,7 +131,7 @@ func (c *Controller) butgetsToBtns(opID string, budgets []Budget) []Btn {
 		})
 	}
 
-	btnMetas = append(btnMetas, mongo.BtnMeta{
+	btnMetas = append(btnMetas, db.BtnMeta{
 		ActionType:  setCategoryAction,
 		OperationID: opID,
 		CategotyID:  ignoreBtnCategory,
@@ -140,7 +161,7 @@ func (c *Controller) askForOperationCategory(operation Operation) {
 
 	btns := c.butgetsToBtns(operation.ID, budgets)
 
-	if _, err := c.telegram.AskForOperationCategory(operation, btns); err != nil {
+	if _, err := c.tgGroup.AskForOperationCategory(operation, btns); err != nil {
 		log.Println(err)
 	}
 }
@@ -165,7 +186,7 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 			return
 		}
 
-		op := mongo.Operation{
+		op := db.Operation{
 			ID:      opID.String(),
 			Amount:  float64(val),
 			RawText: "custom operation: " + msg.Text,
@@ -180,7 +201,13 @@ func (c *Controller) handleNewMessage(msg TextMsg) {
 
 		btns := c.butgetsToBtns(op.ID, budgets)
 
-		if _, err := c.telegram.AskForCustOperationCategory(msg.ID, btns); err != nil {
+		q := tg.Question{
+			Text:         "Select a category",
+			ReplyToMsgID: msg.ID,
+			Btns:         btns,
+		}
+
+		if _, err := c.tgGroup.Ask(q); err != nil {
 			log.Println("telegram.AskForCustOperationCategory: ", err.Error())
 		}
 	}
@@ -190,7 +217,7 @@ func (c *Controller) showBudgetsStat() {
 	budgets, err := c.budgets.List()
 	if err != nil {
 		log.Println(err.Error())
-		c.telegram.SendMessage(err.Error())
+		c.tgGroup.SendMessage(err.Error())
 		return
 	}
 	lines := make([]string, 0, len(budgets))
@@ -215,7 +242,7 @@ func (c *Controller) showBudgetsStat() {
 		lines = append(lines, fmt.Sprintf("BALANCE %d", totalAmount-totalSpent))
 	}
 
-	if err := c.telegram.SendMessage(strings.Join(lines, "\n")); err != nil {
+	if err := c.tgGroup.SendMessage(strings.Join(lines, "\n")); err != nil {
 		log.Println(err)
 	}
 }
@@ -254,13 +281,13 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 			}
 		}
 
-		acceptBtnMeta := mongo.BtnMeta{
+		acceptBtnMeta := db.BtnMeta{
 			ActionType:  editCategoryAction,
 			CategotyID:  btnMeta.CategotyID,
 			OperationID: op.ID,
 		}
 
-		ids, err := c.btnsMetaDB.AddBatch(ctx, []mongo.BtnMeta{acceptBtnMeta})
+		ids, err := c.btnsMetaDB.AddBatch(ctx, []db.BtnMeta{acceptBtnMeta})
 		if err != nil {
 			log.Println(err)
 			return
@@ -289,7 +316,7 @@ func (c *Controller) handleBtnReply(reply BtnReply) {
 		acceptBtns = c.butgetsToBtns(op.ID, budgets)
 	}
 
-	if err := c.telegram.AcceptReplyWithBtns(reply.MessageID, acceptBtns); err != nil {
+	if err := c.tgGroup.AcceptReplyWithBtns(reply.MessageID, acceptBtns); err != nil {
 		log.Println(err)
 	}
 }
@@ -330,13 +357,13 @@ func (c *Controller) saveToken(path string, token *oauth2.Token) {
 // Request a token from the web, then returns the retrieved token.
 func (c *Controller) getTokenFromWeb() *oauth2.Token {
 	authURL := c.googleAuthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	msg := fmt.Sprintf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
 
-	c.telegram.SendMessage(msg)
+	c.tgGroup.SendMessage(tg.BotMessage{
+		Text: fmt.Sprintf("Go to the following link in your browser then type the authorization code: \n%v\n", authURL),
+	})
 
 	var authCode string
-	for msg := range c.telegram.GetMessagesChan() {
+	for msg := range c.tgGroup.GetMessagesChan() {
 		if len(msg.Text) > 10 {
 			authCode = msg.Text
 			break
@@ -355,3 +382,7 @@ const (
 	setCategoryAction  = "set"
 	editCategoryAction = "edit"
 )
+
+func operationMsg(op account.Operation) {
+	return fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", op.Description, op.Amount)
+}
