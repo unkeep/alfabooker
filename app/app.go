@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/unkeep/alfabooker/account"
 	"github.com/unkeep/alfabooker/budget"
@@ -102,7 +104,26 @@ func (app *App) Run(ctx context.Context) error {
 		tgBot:   tgBot,
 	}
 
+	// func withTimeoutAndErrHandle(){
+
+	// }
+
 	// TODO: handle errors, set timeout
+
+	hh := func(name string, param interface{}, f func(ctx context.Context) error) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+		defer cancel()
+		if err := f(ctx); err != nil {
+			log.Printf("%s(%+v): %s", name, param, err.Error())
+			tgBot.SendMessage(tg.BotMessage{
+				ChatID: cfg.TgAdminChatID,
+				Text: fmt.Sprintf("⚠️ handler: %s, error:\n```%s```\ncontext:\n```%+v```\n",
+					name, err.Error(), param),
+				TextMarkdown: true,
+			})
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -110,11 +131,17 @@ func (app *App) Run(ctx context.Context) error {
 		case err := <-critErrosChan:
 			return err
 		case op := <-opChan:
-			h.handleNewOperation(ctx, op)
+			hh("handleNewOperation", op, func(ctx context.Context) error {
+				return h.handleNewOperation(ctx, op)
+			})
 		case msg := <-msgChan:
-			h.handleUserMessage(ctx, msg)
-		case btnReply := <-btnClicksChan:
-			h.handleBtnClick(ctx, btnReply)
+			hh("handleUserMessage", msg, func(ctx context.Context) error {
+				return h.handleUserMessage(ctx, msg)
+			})
+		case btnClick := <-btnClicksChan:
+			hh("handleBtnClick", btnClick, func(ctx context.Context) error {
+				return h.handleBtnClick(ctx, btnClick)
+			})
 		}
 	}
 }
