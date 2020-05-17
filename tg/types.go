@@ -2,8 +2,9 @@ package tg
 
 // UserMsg is a plain user text message
 type UserMsg struct {
-	ID   int
-	Text string
+	ChatID int64
+	ID     int
+	Text   string
 }
 
 // Btn is a telegram inline btn
@@ -19,6 +20,7 @@ type BtnClick struct {
 }
 
 type BotMessage struct {
+	ChatID       int64
 	ReplyToMsgID int
 	Text         string
 	TextMarkdown bool

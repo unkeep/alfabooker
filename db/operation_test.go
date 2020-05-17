@@ -10,14 +10,10 @@ import (
 const mongoURI = "mongodb+srv://test:testtest@cluster0-z78de.mongodb.net/test?retryWrites=true&w=majority"
 
 func TestOperationUpdateGet(t *testing.T) {
-	cli, err := GetClient(context.Background(), mongoURI)
+	repo, err := GetRepo(context.Background(), mongoURI)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cli.client.Disconnect(context.Background())
-
-	coll := GetOperationsRepo(cli)
-
 	now := time.Now().UTC().Truncate(time.Millisecond)
 
 	op := Operation{
@@ -30,11 +26,11 @@ func TestOperationUpdateGet(t *testing.T) {
 		Time:     now,
 	}
 
-	if err := coll.Save(context.Background(), op); err != nil {
+	if err := repo.Operations.Save(context.Background(), op); err != nil {
 		t.Fatal(err)
 	}
 
-	gotOp, err := coll.GetOne(context.Background(), op.ID)
+	gotOp, err := repo.Operations.GetOne(context.Background(), op.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

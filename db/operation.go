@@ -22,9 +22,8 @@ type Operation struct {
 	Category string
 }
 
-// GetOperationsRepo contructs a OperationsRepo
-func GetOperationsRepo(cli *Client) *OperationsRepo {
-	return &OperationsRepo{c: cli.database.Collection("operations")}
+func getOperationsRepo(mngDB *mongo.Database) *OperationsRepo {
+	return &OperationsRepo{c: mngDB.Collection("operations")}
 }
 
 // OperationsRepo priovides operations access methods
@@ -36,9 +35,9 @@ type OperationsRepo struct {
 var ErrNotFound = mongo.ErrNoDocuments
 
 // GetOne gets an operation with the given ID
-func (c *OperationsRepo) GetOne(ctx context.Context, id string) (Operation, error) {
+func (r *OperationsRepo) GetOne(ctx context.Context, id string) (Operation, error) {
 	filter := bson.M{"_id": id}
-	res := c.c.FindOne(ctx, filter)
+	res := r.c.FindOne(ctx, filter)
 	var op Operation
 	if res.Err() != nil {
 		return op, res.Err()
@@ -52,13 +51,13 @@ func (c *OperationsRepo) GetOne(ctx context.Context, id string) (Operation, erro
 }
 
 // Save saves an operation
-func (c *OperationsRepo) Save(ctx context.Context, op Operation) error {
+func (r *OperationsRepo) Save(ctx context.Context, op Operation) error {
 	filter := bson.M{"_id": op.ID}
 	upd := bson.M{"$set": op}
 	upsert := true
 	opts := &options.UpdateOptions{Upsert: &upsert}
 
-	res, err := c.c.UpdateOne(ctx, filter, upd, opts)
+	res, err := r.c.UpdateOne(ctx, filter, upd, opts)
 
 	if err != nil {
 		return err

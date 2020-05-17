@@ -1,7 +1,6 @@
-package main
+package budget
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,24 +9,24 @@ import (
 )
 
 // New creates budgest instance from google sheets source
-func New(client *http.Client, sheetID string) (Budgets, error) {
-	sheetsSrv, err := sheets.New(client)
+func New(googleClient *http.Client, sheetID string) (*Budgets, error) {
+	sheetsSrv, err := sheets.New(googleClient)
 	if err != nil {
-		return fmt.Errorf("sheets.New: %w", err)
+		return nil, fmt.Errorf("sheets.New: %w", err)
 	}
 
-	return &budgetsImpl{
+	return &Budgets{
 		sheetsSrv: sheetsSrv,
 		sheetID:   sheetID,
 	}, nil
 }
 
-type budgetsImpl struct {
+type Budgets struct {
 	sheetsSrv *sheets.Service
 	sheetID   string
 }
 
-func (b *budgetsImpl) List() ([]Budget, error) {
+func (b *Budgets) List() ([]Budget, error) {
 	readRange := "A1:D14"
 	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
 	if err != nil {
@@ -65,7 +64,7 @@ func (b *budgetsImpl) List() ([]Budget, error) {
 	return result, nil
 }
 
-func (b *budgetsImpl) IncreaseSpent(id string, value int) error {
+func (b *Budgets) IncreaseSpent(id string, value int) error {
 	spentCell := "C" + id
 	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, spentCell).Do()
 	if err != nil {
@@ -73,7 +72,7 @@ func (b *budgetsImpl) IncreaseSpent(id string, value int) error {
 	}
 
 	if len(resp.Values) == 0 || len(resp.Values[0]) == 0 {
-		return errors.New("NotFound")
+		return fmt.Errorf("NotFound")
 	}
 
 	spentValueStr, ok := resp.Values[0][0].(string)

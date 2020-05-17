@@ -7,28 +7,29 @@ import (
 )
 
 func TestBtnMetaAddGet(t *testing.T) {
-	cli, err := GetClient(context.Background(), mongoURI)
+	repo, err := GetRepo(context.Background(), mongoURI)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cli.client.Disconnect(context.Background())
-
-	coll := GetBtnMetaRepo(cli)
 
 	batch := []BtnMeta{
 		{
-			ActionType:  "type1",
-			CategotyID:  "cat1",
-			OperationID: "id1",
+			ActionType:   "type1",
+			CategotyID:   "cat1",
+			OperationID:  "id1",
+			CategotyName: "name1",
+			ChatID:       11111,
 		},
 		{
-			ActionType:  "type2",
-			CategotyID:  "cat2",
-			OperationID: "id2",
+			ActionType:   "type2",
+			CategotyID:   "cat2",
+			OperationID:  "id2",
+			CategotyName: "name2",
+			ChatID:       22222,
 		},
 	}
 
-	ids, err := coll.AddBatch(context.Background(), batch)
+	ids, err := repo.BtnMetas.AddBatch(context.Background(), batch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +40,7 @@ func TestBtnMetaAddGet(t *testing.T) {
 
 	got := make([]BtnMeta, 0, len(ids))
 	for _, id := range ids {
-		btn, err := coll.GetOne(context.Background(), id)
+		btn, err := repo.BtnMetas.GetOne(context.Background(), id)
 		if err != nil {
 			t.Error(err)
 		}

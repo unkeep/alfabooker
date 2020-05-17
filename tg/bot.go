@@ -7,26 +7,24 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-// GetGroup creates a telegram bot instance
-func GetGroup(botToken string, chatID int64) (Group, error) {
+// GetBot creates a telegram bot instance
+func GetBot(botToken string) (*Bot, error) {
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		return nil, err
 	}
 
-	return &telegramImpl{
-		bot:    bot,
-		chatID: chatID,
+	return &Bot{
+		bot: bot,
 	}, nil
 }
 
-type Group struct {
-	bot    *tgbotapi.BotAPI
-	chatID int64
+type Bot struct {
+	bot *tgbotapi.BotAPI
 }
 
-func (g *Group) SendMessage(m BotMessage) (int, error) {
-	msg := tgbotapi.NewMessage(g.chatID, m.Text)
+func (b *Bot) SendMessage(m BotMessage) (int, error) {
+	msg := tgbotapi.NewMessage(m.ChatID, m.Text)
 	if m.TextMarkdown {
 		msg.ParseMode = tgbotapi.ModeMarkdown
 	}
@@ -35,18 +33,18 @@ func (g *Group) SendMessage(m BotMessage) (int, error) {
 		msg.ReplyMarkup = makeInlineKeyboardMarkup(m.Btns)
 	}
 
-	sentMsg, err := g.bot.Send(msg)
+	sentMsg, err := b.bot.Send(msg)
 
 	if err != nil {
-		return 0, fmt.Errorf(err, "bot.Send: %w", err)
+		return 0, fmt.Errorf("bot.Send: %w", err)
 	}
 
 	return sentMsg.MessageID, nil
 }
 
-func (g *Group) EditBtns(msgID int, newBtns []Btn) error {
-	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(g.chatID, msgID, makeInlineKeyboardMarkup(newBtns))
-	_, err := g.bot.Send(keyboardEdit)
+func (b *Bot) EditBtns(chatID int64, msgID int, newBtns []Btn) error {
+	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, msgID, makeInlineKeyboardMarkup(newBtns))
+	_, err := b.bot.Send(keyboardEdit)
 	if err != nil {
 		return fmt.Errorf("bot.Send: %w", err)
 	}
@@ -65,12 +63,12 @@ func makeInlineKeyboardMarkup(btns []Btn) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-func (g *Group) GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan<- BtnClick) error {
+func (b *Bot) GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan<- BtnClick) error {
 	updCfg := tgbotapi.NewUpdate(0)
 	updCfg.Timeout = 60
-	updCh, err := g.bot.GetUpdatesChan(updCfg)
+	updCh, err := b.bot.GetUpdatesChan(updCfg)
 	if err != nil {
-		return nil, fmt.Errorf("bot.GetUpdatesChan: %w", err)
+		return fmt.Errorf("bot.GetUpdatesChan: %w", err)
 	}
 
 	for {
@@ -78,12 +76,17 @@ func (g *Group) GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan
 		case <-ctx.Done():
 			return nil
 		case upd := <-updCh:
-			if upd.Message != nil && upd.Message.Chat.ID == chatID {
-				msgs <- UserMsg{ID: upd.Message.MessageID, Text: upd.Message.Text}
+			if upd.Message != nil {
+				msgs <- UserMsg{
+					ChatID: upd.Message.Chat.ID,
+					ID:     upd.Message.MessageID,
+					Text:   upd.Message.Text,
+				}
 			}
 
 			if upd.CallbackQuery != nil {
 				clicks <- BtnClick{
+					// ChatID: upd.CallbackQuery.Message.Chat.ID,
 					MessageID: upd.CallbackQuery.Message.MessageID,
 					BtnID:     upd.CallbackQuery.Data,
 				}

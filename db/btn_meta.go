@@ -11,9 +11,11 @@ import (
 
 // BtnMeta tg btn meta
 type BtnMeta struct {
-	ActionType  string
-	OperationID string
-	CategotyID  string
+	ActionType   string
+	OperationID  string
+	CategotyID   string
+	CategotyName string
+	ChatID       int64
 }
 
 // BtnMetaRepo priovides bt metas access methods
@@ -21,9 +23,8 @@ type BtnMetaRepo struct {
 	c *mongo.Collection
 }
 
-// GetBtnMetaRepo contructs a BtnMetaRepo
-func GetBtnMetaRepo(cli *Client) *BtnMetaRepo {
-	return &BtnMetaRepo{c: cli.database.Collection("btnmeta")}
+func getBtnMetaRepo(mngDB *mongo.Database) *BtnMetaRepo {
+	return &BtnMetaRepo{c: mngDB.Collection("btnmeta")}
 }
 
 // GetOne gets btnBeta by id
