@@ -11,5 +11,5 @@ RUN rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=0 /app/alfabooker .
-EXPOSE 8080
+EXPOSE 80
 CMD ["./alfabooker"]

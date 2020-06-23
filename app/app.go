@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/unkeep/alfabooker/account"
@@ -24,9 +25,15 @@ func (app *App) Run(ctx context.Context) error {
 		return fmt.Errorf("getConfig: %w", err)
 	}
 
+	// herocu param
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "80"
+	}
+
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpServer := http.Server{
-		Addr:    cfg.HTTPAddr,
+		Addr:    "0.0.0.0:" + port,
 		Handler: http.HandlerFunc(healthcheckHandler),
 	}
 
