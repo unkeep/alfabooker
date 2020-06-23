@@ -13,7 +13,7 @@ type config struct {
 	GClientSecret string `required:"true"`
 	GProjectID    string `required:"true"`
 	MongoURI      string `required:"true"`
-	Port          string `default:"8080"`
+	Port          string `default:"80"`
 }
 
 func getConfig() (config, error) {

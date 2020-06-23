@@ -25,8 +25,10 @@ func (app *App) Run(ctx context.Context) error {
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpServer := http.Server{
-		Addr: "0.0.0.0:" + cfg.Port,
+		Addr:    "0.0.0.0:" + cfg.Port,
+		Handler: http.HandlerFunc(healthcheckHandler),
 	}
+
 	go httpServer.ListenAndServe()
 	go func() {
 		<-ctx.Done()
