@@ -27,7 +27,7 @@ func (h *handler) handleNewOperation(ctx context.Context, op account.Operation) 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	if _, err := h.repo.Operations.GetOne(ctx, op.ID); err != db.ErrNotFound {
+	if _, err := h.repo.Operations.GetOne(ctx, op.ID); err != nil && err != db.ErrNotFound {
 		return fmt.Errorf("Operations.GetOne: %w", err)
 	}
 
