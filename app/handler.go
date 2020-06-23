@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -122,6 +123,12 @@ func (h *handler) makeOpBtns(opID string, chatID int64) ([]tg.Btn, error) {
 }
 
 func (h *handler) handleUserMessage(ctx context.Context, msg tg.UserMsg) error {
+	log.Println(msg)
+
+	if msg.ChatID != h.cfg.TgChatID && msg.ChatID != h.cfg.TgAdminChatID {
+		return fmt.Errorf("message from unknown chat: %+v", msg)
+	}
+
 	text := strings.TrimSpace(msg.Text)
 
 	if text == "?" {

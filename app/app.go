@@ -106,17 +106,11 @@ func (app *App) Run(ctx context.Context) error {
 		tgBot:   tgBot,
 	}
 
-	// func withTimeoutAndErrHandle(){
-
-	// }
-
-	// TODO: handle errors, set timeout
-
 	hh := func(name string, param interface{}, f func(ctx context.Context) error) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
 		if err := f(ctx); err != nil {
-			log.Printf("%s(%+v): %s", name, param, err.Error())
+			log.Printf("%s(%+v): %s\n", name, param, err.Error())
 			tgBot.SendMessage(tg.BotMessage{
 				ChatID: cfg.TgAdminChatID,
 				Text: fmt.Sprintf("⚠️ handler: %s, error:\n```%s```\ncontext:\n```%+v```\n",
