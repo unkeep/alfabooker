@@ -18,6 +18,7 @@ import (
 type App struct{}
 
 func (app *App) Run(ctx context.Context) error {
+	log.Println("Run")
 	cfg, err := getConfig()
 	if err != nil {
 		return fmt.Errorf("getConfig: %w", err)
@@ -40,11 +41,13 @@ func (app *App) Run(ctx context.Context) error {
 		return fmt.Errorf("getGoogleAuthConfig: %w", err)
 	}
 
+	log.Println("GetRepo")
 	repo, err := db.GetRepo(ctx, cfg.MongoURI)
 	if err != nil {
 		return fmt.Errorf("db.GetRepo: %w", err)
 	}
 
+	log.Println("GetBot")
 	tgBot, err := tg.GetBot(cfg.TgToken)
 	if err != nil {
 		return fmt.Errorf("tg.GetBot: %w", err)
@@ -70,22 +73,26 @@ func (app *App) Run(ctx context.Context) error {
 		return fmt.Errorf("tgBot.SendMessage(authLinkMsg): %w", err)
 	}
 
+	log.Println("waitForAuthCode")
 	code := waitForAuthCode(msgChan, cfg.TgAdminChatID)
 	if code == "" {
 		return nil
 	}
 
+	log.Println("googleAuthCfg.Exchange")
 	tok, err := googleAuthCfg.Exchange(ctx, code)
 	if err != nil {
 		return fmt.Errorf("googleAuthCfg.Exchange: %w", err)
 	}
 	googleClient := googleAuthCfg.Client(ctx, tok)
 
+	log.Println("budget.New")
 	budgets, err := budget.New(googleClient, cfg.GSheetID)
 	if err != nil {
 		return fmt.Errorf("budget.New: %w", err)
 	}
 
+	log.Println("account.New")
 	acc, err := account.New(googleClient)
 	if err != nil {
 		return fmt.Errorf("account.New: %w", err)
@@ -93,6 +100,7 @@ func (app *App) Run(ctx context.Context) error {
 
 	opChan := make(chan account.Operation, 0)
 	go func() {
+		log.Println("acc.GetOperations")
 		if err := acc.GetOperations(ctx, opChan); err != nil {
 			critErrosChan <- fmt.Errorf("acc.GetOperations: %w", err)
 		}
@@ -120,6 +128,7 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}
 
+	log.Println("selecting channels")
 	for {
 		select {
 		case <-ctx.Done():
