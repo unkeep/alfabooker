@@ -114,7 +114,7 @@ func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
 		Amount:      amount * amountSign,
 		Balance:     balance,
 		Success:     parseSuccess(rawMsg),
-		Description: string(rawMsg),
+		Description: parseDescription(rawMsg),
 		RawText:     string(rawMsg),
 	}, nil
 }
@@ -135,6 +135,14 @@ func (acc *Account) parseBalance(body []byte) (float64, error) {
 	}
 
 	return strconv.ParseFloat(string(res[1]), 64)
+}
+
+func parseDescription(body []byte) string {
+	lines := strings.Split(string(body), "\n")
+	if len(lines) < 2 {
+		return ""
+	}
+	return lines[len(lines)-2]
 }
 
 func isTransferOut(body []byte) bool {
