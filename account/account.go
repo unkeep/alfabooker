@@ -85,28 +85,37 @@ func (acc *Account) getLastOperation() (Operation, bool, error) {
 
 	acc.lastMsgID = msgID
 
-	amount, err := acc.parseAmount(data)
+	op, err := acc.newOperation(msgID, data)
 	if err != nil {
-		log.Println(err)
+		return Operation{}, false, fmt.Errorf("newOperation(id: %s, data: %s): %w", msgID, string(data), err)
 	}
 
-	balance, err := acc.parseBalance(data)
+	return op, true, nil
+}
+
+func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
+	amount, err := acc.parseAmount(rawMsg)
 	if err != nil {
-		log.Println(err)
+		return Operation{}, fmt.Errorf("parseAmount: %w", err)
+	}
+
+	balance, err := acc.parseBalance(rawMsg)
+	if err != nil {
+		return Operation{}, fmt.Errorf("parseBalance: %w", err)
 	}
 
 	amountSign := 1.0
-	if isTransferOut(data) {
+	if isTransferOut(rawMsg) {
 		amountSign = -1
 	}
 
 	return Operation{
-		ID:          msgID,
+		ID:          id,
 		Amount:      amount * amountSign,
 		Balance:     balance,
-		Success:     parseSuccess(data),
-		Description: string(data),
-	}, true, nil
+		Success:     parseSuccess(rawMsg),
+		Description: string(rawMsg),
+	}, nil
 }
 
 func (acc *Account) parseAmount(body []byte) (float64, error) {
