@@ -139,10 +139,10 @@ func (acc *Account) parseBalance(body []byte) (float64, error) {
 
 func parseDescription(body []byte) string {
 	lines := strings.Split(string(body), "\n")
-	if len(lines) < 2 {
+	if len(lines) < 3 {
 		return ""
 	}
-	return lines[len(lines)-2]
+	return lines[len(lines)-3]
 }
 
 func isTransferOut(body []byte) bool {
