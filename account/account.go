@@ -142,7 +142,8 @@ func parseDescription(body []byte) string {
 	if len(lines) < 3 {
 		return ""
 	}
-	return lines[len(lines)-3]
+
+	return strings.TrimSpace(lines[len(lines)-3])
 }
 
 func isTransferOut(body []byte) bool {
