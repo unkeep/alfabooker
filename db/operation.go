@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,9 +31,6 @@ type OperationsRepo struct {
 	c *mongo.Collection
 }
 
-// ErrNotFound is an alias of mongo.ErrNoDocuments
-var ErrNotFound = mongo.ErrNoDocuments
-
 // GetOne gets an operation with the given ID
 func (r *OperationsRepo) GetOne(ctx context.Context, id string) (Operation, error) {
 	filter := bson.M{"_id": id}
@@ -58,11 +54,10 @@ func (r *OperationsRepo) Save(ctx context.Context, op Operation) error {
 	upsert := true
 	opts := &options.UpdateOptions{Upsert: &upsert}
 
-	res, err := r.c.UpdateOne(ctx, filter, upd, opts)
+	_, err := r.c.UpdateOne(ctx, filter, upd, opts)
 
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%+v\n", *res)
 	return nil
 }

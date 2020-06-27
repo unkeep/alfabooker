@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"github.com/unkeep/alfabooker/tg"
 	"golang.org/x/oauth2"
 )
+
+const googleTokenID = "google_auth"
 
 type App struct{}
 
@@ -70,28 +73,12 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}()
 
-	authURL := googleAuthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-
-	authLinkMsg := tg.BotMessage{
-		ChatID: cfg.TgAdminChatID,
-		Text:   fmt.Sprintf("Go to the following link in your browser then type the authorization code: \n%s\n", authURL),
-	}
-	if _, err := tgBot.SendMessage(authLinkMsg); err != nil {
-		return fmt.Errorf("tgBot.SendMessage(authLinkMsg): %w", err)
-	}
-
-	log.Println("waitForAuthCode")
-	code := waitForAuthCode(msgChan, cfg.TgAdminChatID)
-	if code == "" {
-		return nil
-	}
-
-	log.Println("googleAuthCfg.Exchange")
-	tok, err := googleAuthCfg.Exchange(ctx, code)
+	googleAutToken, err := getGoogleAuthToken(ctx, googleAuthCfg, tgBot, msgChan, cfg.TgAdminChatID, repo.Tokens)
 	if err != nil {
-		return fmt.Errorf("googleAuthCfg.Exchange: %w", err)
+		return fmt.Errorf("getGoogleAuthToken: %w", err)
 	}
-	googleClient := googleAuthCfg.Client(ctx, tok)
+
+	googleClient := googleAuthCfg.Client(ctx, googleAutToken)
 
 	log.Println("budget.New")
 	budgets, err := budget.New(googleClient, cfg.GSheetID)
@@ -156,6 +143,80 @@ func (app *App) Run(ctx context.Context) error {
 			})
 		}
 	}
+}
+
+func getGoogleAuthToken(
+	ctx context.Context,
+	googleAuthCfg *oauth2.Config,
+	tgBot *tg.Bot,
+	msgChan <-chan tg.UserMsg,
+	adminChatID int64,
+	tokensRepo *db.TokensRepo) (*oauth2.Token, error) {
+
+	savedGoogleTok, err := tokensRepo.GetOne(ctx, googleTokenID)
+	if err != nil {
+		if err != db.ErrNotFound {
+			log.Println(fmt.Errorf("failed to get google auth token from db: %w", err))
+		}
+		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
+	}
+
+	var googleTok oauth2.Token
+	if err := json.Unmarshal(savedGoogleTok.Data, &googleTok); err != nil {
+		log.Println(fmt.Errorf("failed to unmarshal google auth token from db: %w", err))
+		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
+	}
+	if !googleTok.Valid() {
+		log.Println(fmt.Errorf("google auth token from db is no more valid: %w", err))
+		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
+	}
+
+	return &googleTok, nil
+}
+
+func getGoogleAuthTokenFromTg(
+	ctx context.Context,
+	googleAuthCfg *oauth2.Config,
+	tgBot *tg.Bot,
+	msgChan <-chan tg.UserMsg,
+	adminChatID int64,
+	tokensRepo *db.TokensRepo) (*oauth2.Token, error) {
+
+	authURL := googleAuthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+
+	authLinkMsg := tg.BotMessage{
+		ChatID: adminChatID,
+		Text:   fmt.Sprintf("Go to the following link in your browser then type the authorization code: \n%s\n", authURL),
+	}
+	if _, err := tgBot.SendMessage(authLinkMsg); err != nil {
+		return nil, fmt.Errorf("tgBot.SendMessage(authLinkMsg): %w", err)
+	}
+
+	log.Println("waitForAuthCode")
+	code := waitForAuthCode(msgChan, adminChatID)
+	if code == "" {
+		return nil, fmt.Errorf("failed to get google auth code")
+	}
+
+	log.Println("googleAuthCfg.Exchange")
+	tok, err := googleAuthCfg.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("googleAuthCfg.Exchange: %w", err)
+	}
+
+	tokData, err := json.Marshal(tok)
+	if err != nil {
+		return tok, fmt.Errorf("failed to marshal google auth token: %w", err)
+	}
+	if err := tokensRepo.Save(ctx, db.Token{
+		ID:   googleTokenID,
+		Data: tokData,
+		Time: time.Now(),
+	}); err != nil {
+		return tok, fmt.Errorf("failed to save google auth token: %w", err)
+	}
+
+	return tok, nil
 }
 
 func waitForAuthCode(msgChan <-chan tg.UserMsg, adminChatID int64) string {
