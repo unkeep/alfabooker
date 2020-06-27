@@ -13,13 +13,14 @@ import (
 
 // Operation is struct of an operation stored in db
 type Operation struct {
-	ID       string `bson:"_id"`
-	Time     time.Time
-	Amount   float64
-	Balance  float64
-	Success  bool
-	RawText  string
-	Category string
+	ID          string `bson:"_id"`
+	Time        time.Time
+	Amount      float64
+	Balance     float64
+	Success     bool
+	RawText     string
+	Description string
+	Category    string
 }
 
 func getOperationsRepo(mngDB *mongo.Database) *OperationsRepo {

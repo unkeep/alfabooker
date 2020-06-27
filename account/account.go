@@ -115,6 +115,7 @@ func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
 		Balance:     balance,
 		Success:     parseSuccess(rawMsg),
 		Description: string(rawMsg),
+		RawText:     string(rawMsg),
 	}, nil
 }
 

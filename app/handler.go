@@ -36,12 +36,13 @@ func (h *handler) handleNewOperation(ctx context.Context, op account.Operation) 
 	}
 
 	dbOp := db.Operation{
-		ID:      op.ID,
-		Amount:  op.Amount,
-		Balance: op.Balance,
-		RawText: op.Description,
-		Success: op.Success,
-		Time:    time.Now(),
+		ID:          op.ID,
+		Amount:      op.Amount,
+		Balance:     op.Balance,
+		RawText:     op.RawText,
+		Description: op.Description,
+		Success:     op.Success,
+		Time:        time.Now(),
 	}
 
 	err := h.repo.Operations.Save(ctx, dbOp)
@@ -51,7 +52,7 @@ func (h *handler) handleNewOperation(ctx context.Context, op account.Operation) 
 
 	msg := tg.BotMessage{
 		ChatID:       h.cfg.TgChatID,
-		Text:         fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", op.Description, op.Amount),
+		Text:         fmt.Sprintf("```\n%s\n```\nParsed amount: `%f`", op.RawText, op.Amount),
 		TextMarkdown: true,
 	}
 

@@ -7,4 +7,5 @@ type Operation struct {
 	Balance     float64
 	Success     bool
 	Description string
+	RawText     string
 }
