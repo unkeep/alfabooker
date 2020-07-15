@@ -161,17 +161,21 @@ func getGoogleAuthToken(
 		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
 	}
 
-	var googleTok oauth2.Token
+	var googleTok *oauth2.Token
 	if err := json.Unmarshal(savedGoogleTok.Data, &googleTok); err != nil {
 		log.Println(fmt.Errorf("failed to unmarshal google auth token from db: %w", err))
 		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
 	}
+
 	if !googleTok.Valid() {
-		log.Println(fmt.Errorf("google auth token from db is no more valid: %w", err))
-		return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
+		googleTok, err = googleAuthCfg.TokenSource(ctx, googleTok).Token()
+		if err != nil {
+			log.Println(fmt.Errorf("failed to refresh google token: %w", err))
+			return getGoogleAuthTokenFromTg(ctx, googleAuthCfg, tgBot, msgChan, adminChatID, tokensRepo)
+		}
 	}
 
-	return &googleTok, nil
+	return googleTok, nil
 }
 
 func getGoogleAuthTokenFromTg(
