@@ -35,11 +35,14 @@ func (b *Budgets) List() ([]Budget, error) {
 
 	result := make([]Budget, 0, len(resp.Values))
 	for i, row := range resp.Values {
-		if len(row) == 0 {
+		if len(row) < 4 {
 			continue
 		}
 
 		name, _ := row[0].(string)
+		if name == "" {
+			continue
+		}
 
 		amountStr, _ := row[1].(string)
 		amount, _ := strconv.Atoi(amountStr)
