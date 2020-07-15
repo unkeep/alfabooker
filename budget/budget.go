@@ -67,6 +67,28 @@ func (b *Budgets) List() ([]Budget, error) {
 	return result, nil
 }
 
+func (b *Budgets) Totals() ([]string, error) {
+	readRange := "A30:C35"
+	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, 0, len(resp.Values))
+	for _, row := range resp.Values {
+		if len(row) < 3 {
+			continue
+		}
+
+		name, _ := row[0].(string)
+		valRub, _ := row[1].(string)
+		valUSD, _ := row[2].(string)
+		result = append(result, fmt.Sprintf("%s %s(%s)", name, valRub, valUSD))
+	}
+
+	return result, nil
+}
+
 func (b *Budgets) IncreaseSpent(id string, value int) error {
 	spentCell := "C" + id
 	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, spentCell).Do()

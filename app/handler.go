@@ -197,8 +197,6 @@ func (h *handler) showBudgetsStat(chatID int64) error {
 	}
 
 	lines := make([]string, 0, len(budgets))
-	var totalSpent int
-	var totalAmount int
 	for _, b := range budgets {
 		spentPct := int(float32(b.Spent) / float32(b.Amount) * 100)
 		name := strings.TrimPrefix(b.Name, ".")
@@ -207,16 +205,16 @@ func (h *handler) showBudgetsStat(chatID int64) error {
 			line += "⚠️"
 		}
 		lines = append(lines, line)
+	}
 
-		totalSpent += b.Spent
-		totalAmount += b.Amount
+	// totals
+	lines = append(lines, "")
+
+	tatals, err := h.budgets.Totals()
+	if err != nil {
+		return fmt.Errorf("budgets.Totals: %w", err)
 	}
-	if totalAmount != 0 {
-		totalSpentPct := int(float32(totalSpent) / float32(totalAmount) * 100.0)
-		line := fmt.Sprintf("TOTAL %d/%d(%d%%)", totalSpent, totalAmount, totalSpentPct)
-		lines = append(lines, line)
-		lines = append(lines, fmt.Sprintf("BALANCE %d", totalAmount-totalSpent))
-	}
+	lines = append(lines, tatals...)
 
 	msg := tg.BotMessage{
 		ChatID: chatID,
