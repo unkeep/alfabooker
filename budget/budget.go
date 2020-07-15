@@ -27,7 +27,7 @@ type Budgets struct {
 }
 
 func (b *Budgets) List() ([]Budget, error) {
-	readRange := "A1:D14"
+	readRange := "A1:D21"
 	resp, err := b.sheetsSrv.Spreadsheets.Values.Get(b.sheetID, readRange).Do()
 	if err != nil {
 		return nil, err
