@@ -29,7 +29,7 @@ func (h *handler) handleNewOperation(ctx context.Context, op account.Operation) 
 		return fmt.Errorf("Budget.Get: %w", err)
 	}
 
-	budget.Balance = op.Amount
+	budget.Balance = op.Balance
 
 	h.repo.Budget.Save(ctx, budget)
 	if err != nil {
@@ -71,6 +71,7 @@ func (h *handler) updateBudgetTiming(ctx context.Context, days int) error {
 		return fmt.Errorf("Budget.Get: %w", err)
 	}
 	now := time.Now()
+	b.Amount = b.Balance
 	b.StartedAt = now.Unix()
 	b.ExpiresAt = now.Add(time.Hour * time.Duration(24*days)).Unix()
 
@@ -87,7 +88,7 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
 	budgetDuration := b.ExpiresAt - b.StartedAt
 	elapsed := now.Unix() - b.StartedAt
 	daysToExpiration := time.Unix(b.ExpiresAt, 0).Sub(now).Truncate(time.Hour).Hours() / 24
-	estimatedBalance := b.Amount * float64(elapsed / budgetDuration)
+	estimatedBalance := b.Amount * float64(elapsed/budgetDuration)
 	estimatedBalanceDiff := b.Balance - estimatedBalance
 
 	sign := ""

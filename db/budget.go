@@ -50,8 +50,5 @@ func (r *BudgetRepo) Save(ctx context.Context, b Budget) error {
 
 	_, err := r.c.UpdateOne(ctx, filter, upd, opts)
 
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
