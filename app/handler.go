@@ -93,7 +93,7 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
         spendingDiff := estimatedSpending - actualSpending
 
 	sign := ""
-	if estimatedBalanceDiff > 0 {
+	if spendingDiff > 0 {
 		sign = "+"
 	}
 	text := fmt.Sprintf("%dr for %d days (%s%dr estimated)", int(b.Balance), int(daysToExpiration), sign, int(spendingDiff))
