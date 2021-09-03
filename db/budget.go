@@ -9,11 +9,11 @@ import (
 )
 
 type Budget struct {
-	ID   string `bson:"_id"`
-	Amount float64
+	ID        string `bson:"_id"`
+	Amount    float64
 	StartedAt int64
 	ExpiresAt int64
-	Balance float64
+	Balance   float64
 }
 
 const budgetID = "budget"
@@ -42,6 +42,7 @@ func (r *BudgetRepo) Get(ctx context.Context) (Budget, error) {
 }
 
 func (r *BudgetRepo) Save(ctx context.Context, b Budget) error {
+	b.ID = budgetID
 	filter := bson.M{"_id": b.ID}
 	upd := bson.M{"$set": b}
 	upsert := true
