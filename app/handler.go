@@ -88,14 +88,15 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
 	budgetDuration := b.ExpiresAt - b.StartedAt
 	elapsed := now.Unix() - b.StartedAt
 	daysToExpiration := time.Unix(b.ExpiresAt, 0).Sub(now).Truncate(time.Hour).Hours() / 24
-	estimatedBalance := b.Amount * float64(elapsed/budgetDuration)
-	estimatedBalanceDiff := b.Balance - estimatedBalance
+	estimatedSpending := b.Amount * float64(elapsed/budgetDuration)
+	actualSpending := b.Amount - b.Balance
+        spendingDiff := estimatedSpending - actualSpending
 
 	sign := ""
 	if estimatedBalanceDiff > 0 {
 		sign = "+"
 	}
-	text := fmt.Sprintf("%dr for %d days (%s%dr estimated)", int(b.Balance), int(daysToExpiration), sign, int(estimatedBalanceDiff))
+	text := fmt.Sprintf("%dr for %d days (%s%dr estimated)", int(b.Balance), int(daysToExpiration), sign, int(spendingDiff))
 	msg := tg.BotMessage{
 		ChatID: chatID,
 		Text:   text,
