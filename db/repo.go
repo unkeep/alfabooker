@@ -10,9 +10,8 @@ import (
 )
 
 type Repo struct {
-	Operations *OperationsRepo
-	BtnMetas   *BtnMetaRepo
 	Tokens     *TokensRepo
+	Budget     *BudgetRepo
 }
 
 func (r *Repo) Close() {
@@ -40,8 +39,7 @@ func GetRepo(ctx context.Context, mongoURI string) (*Repo, error) {
 	db := cli.Database(connStr.Database)
 
 	return &Repo{
-		Operations: getOperationsRepo(db),
-		BtnMetas:   getBtnMetaRepo(db),
 		Tokens:     getTokensRepo(db),
+		Budget:     getBudgetRepo(db),
 	}, nil
 }

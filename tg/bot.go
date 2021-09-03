@@ -63,7 +63,7 @@ func makeInlineKeyboardMarkup(btns []Btn) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-func (b *Bot) GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan<- BtnClick) error {
+func (b *Bot) GetUpdates(ctx context.Context, msgs chan<- UserMsg) error {
 	updCfg := tgbotapi.NewUpdate(0)
 	updCfg.Timeout = 60
 	updCh, err := b.bot.GetUpdatesChan(updCfg)
@@ -81,14 +81,6 @@ func (b *Bot) GetUpdates(ctx context.Context, msgs chan<- UserMsg, clicks chan<-
 					ChatID: upd.Message.Chat.ID,
 					ID:     upd.Message.MessageID,
 					Text:   upd.Message.Text,
-				}
-			}
-
-			if upd.CallbackQuery != nil {
-				clicks <- BtnClick{
-					// ChatID: upd.CallbackQuery.Message.Chat.ID,
-					MessageID: upd.CallbackQuery.Message.MessageID,
-					BtnID:     upd.CallbackQuery.Data,
 				}
 			}
 		}

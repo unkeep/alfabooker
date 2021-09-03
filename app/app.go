@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/unkeep/alfabooker/account"
-	"github.com/unkeep/alfabooker/budget"
 	"github.com/unkeep/alfabooker/db"
 	"github.com/unkeep/alfabooker/tg"
 	"golang.org/x/oauth2"
@@ -64,11 +63,10 @@ func (app *App) Run(ctx context.Context) error {
 	}
 
 	msgChan := make(chan tg.UserMsg, 0)
-	btnClicksChan := make(chan tg.BtnClick, 0)
 	critErrosChan := make(chan error, 0)
 
 	go func() {
-		if err := tgBot.GetUpdates(ctx, msgChan, btnClicksChan); err != nil {
+		if err := tgBot.GetUpdates(ctx, msgChan); err != nil {
 			critErrosChan <- fmt.Errorf("tgBot.GetUpdates: %w", err)
 		}
 	}()
@@ -79,12 +77,6 @@ func (app *App) Run(ctx context.Context) error {
 	}
 
 	googleClient := googleAuthCfg.Client(ctx, googleAutToken)
-
-	log.Println("budget.New")
-	budgets, err := budget.New(googleClient, cfg.GSheetID)
-	if err != nil {
-		return fmt.Errorf("budget.New: %w", err)
-	}
 
 	log.Println("account.New")
 	acc, err := account.New(googleClient)
@@ -104,7 +96,6 @@ func (app *App) Run(ctx context.Context) error {
 		cfg:     cfg,
 		repo:    repo,
 		account: acc,
-		budgets: budgets,
 		tgBot:   tgBot,
 	}
 
@@ -136,10 +127,6 @@ func (app *App) Run(ctx context.Context) error {
 		case msg := <-msgChan:
 			hh("handleUserMessage", msg, func(ctx context.Context) error {
 				return h.handleUserMessage(ctx, msg)
-			})
-		case btnClick := <-btnClicksChan:
-			hh("handleBtnClick", btnClick, func(ctx context.Context) error {
-				return h.handleBtnClick(ctx, btnClick)
 			})
 		}
 	}
