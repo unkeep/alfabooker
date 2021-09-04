@@ -96,11 +96,8 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
 	if spendingDiff > 0 {
 		sign = "+"
 	}
-	helper := fmt.Sprintf("dur: %d, elapsed: %d, estSpe: %d, actSpe: %d",
-		int(budgetDuration), int(elapsed), int(estimatedSpending), int(actualSpending))
-
-	text := fmt.Sprintf("%dr for %.1f days (%s%dr estimated)\n%s",
-		int(b.Balance), daysToExpiration, sign, int(spendingDiff), helper)
+	text := fmt.Sprintf("%dr for %.1f days (%s%dr estimated)",
+		int(b.Balance), daysToExpiration, sign, int(spendingDiff))
 	msg := tg.BotMessage{
 		ChatID: chatID,
 		Text:   text,
