@@ -85,18 +85,22 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
 	}
 
 	now := time.Now()
-	budgetDuration := b.ExpiresAt - b.StartedAt
-	elapsed := now.Unix() - b.StartedAt
-	daysToExpiration := time.Unix(b.ExpiresAt, 0).Sub(now).Truncate(time.Hour).Hours() / 24
-	estimatedSpending := b.Amount * float64(elapsed/budgetDuration)
+	budgetDuration := float64(b.ExpiresAt - b.StartedAt)
+	elapsed := float64(now.Unix() - b.StartedAt)
+	daysToExpiration := time.Unix(b.ExpiresAt, 0).Sub(now).Hours() / 24.0
+	estimatedSpending := b.Amount * elapsed / budgetDuration
 	actualSpending := b.Amount - b.Balance
-        spendingDiff := estimatedSpending - actualSpending
+	spendingDiff := estimatedSpending - actualSpending
 
 	sign := ""
 	if spendingDiff > 0 {
 		sign = "+"
 	}
-	text := fmt.Sprintf("%dr for %d days (%s%dr estimated)", int(b.Balance), int(daysToExpiration), sign, int(spendingDiff))
+	helper := fmt.Sprintf("dur: %d, elapsed: %d, estSpe: %d, actSpe: %d",
+		int(budgetDuration), int(elapsed), int(estimatedSpending), int(actualSpending))
+
+	text := fmt.Sprintf("%dr for %.1f days (%s%dr estimated)\n%s",
+		int(b.Balance), daysToExpiration, sign, int(spendingDiff), helper)
 	msg := tg.BotMessage{
 		ChatID: chatID,
 		Text:   text,
