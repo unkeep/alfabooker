@@ -23,7 +23,7 @@ func New(client *http.Client) (*Account, error) {
 	acc := &Account{
 		gmailSrv:  gmailSrv,
 		amountRE:  regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
-		balanceRE: regexp.MustCompile(`Остаток:([0-9]*\.?[0-9]*)\sBYN`),
+		balanceRE: regexp.MustCompile(`Balance:\s([0-9]*\.?[0-9]*)\sGEL`),
 	}
 
 	return acc, nil
@@ -58,7 +58,7 @@ func (acc *Account) GetOperations(ctx context.Context, ops chan<- Operation) err
 }
 
 func (acc *Account) getLastOperation() (Operation, bool, error) {
-	listResp, err := acc.gmailSrv.Users.Messages.List("me").Q("label:alfa-bank").MaxResults(1).Do()
+	listResp, err := acc.gmailSrv.Users.Messages.List("me").Q("label:tbc-sms").MaxResults(1).Do()
 
 	if err != nil {
 		return Operation{}, false, fmt.Errorf("Messages.List: %w", err)
@@ -94,28 +94,28 @@ func (acc *Account) getLastOperation() (Operation, bool, error) {
 }
 
 func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
-	amount, err := acc.parseAmount(rawMsg)
-	if err != nil {
-		return Operation{}, fmt.Errorf("parseAmount: %w", err)
-	}
+	// amount, err := acc.parseAmount(rawMsg)
+	// if err != nil {
+	// 	return Operation{}, fmt.Errorf("parseAmount: %w", err)
+	// }
 
 	balance, err := acc.parseBalance(rawMsg)
 	if err != nil {
 		return Operation{}, fmt.Errorf("parseBalance: %w", err)
 	}
 
-	amountSign := 1.0
-	if isTransferOut(rawMsg) {
-		amountSign = -1
-	}
+	// amountSign := 1.0
+	// if isTransferOut(rawMsg) {
+	// 	amountSign = -1
+	// }
 
 	return Operation{
-		ID:          id,
-		Amount:      amount * amountSign,
-		Balance:     balance,
-		Success:     parseSuccess(rawMsg),
-		Description: parseDescription(rawMsg),
-		RawText:     string(rawMsg),
+		ID: id,
+		// Amount:      amount * amountSign,
+		Balance: balance,
+		// Success:     parseSuccess(rawMsg),
+		// Description: parseDescription(rawMsg),
+		RawText: string(rawMsg),
 	}, nil
 }
 
