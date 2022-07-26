@@ -55,14 +55,43 @@ func (h *handler) handleUserMessage(ctx context.Context, msg tg.UserMsg) error {
 		return nil
 	}
 
-	if val, _ := strconv.Atoi(text); val != 0 {
+	if strings.HasPrefix(text, "new ") {
+		text = strings.TrimPrefix(text, "new ")
+		val, err := strconv.Atoi(text)
+		if err != nil {
+			return fmt.Errorf("parse days: %w", err)
+		}
+
 		if err := h.updateBudgetTiming(ctx, val); err != nil {
 			return fmt.Errorf("updateBudgetTiming: %w", err)
 		}
 		return nil
 	}
 
+	if strings.HasPrefix(text, "cash ") {
+		text = strings.TrimPrefix(text, "cash ")
+		val, err := strconv.Atoi(text)
+		if err != nil {
+			return fmt.Errorf("parse cash value: %w", err)
+		}
+
+		if err := h.setCash(ctx, val); err != nil {
+			return fmt.Errorf("setCash: %w", err)
+		}
+		return nil
+	}
+
 	return nil
+}
+
+func (h *handler) setCash(ctx context.Context, val int) error {
+	b, err := h.repo.Budget.Get(ctx)
+	if err != nil && err != db.ErrNotFound {
+		return fmt.Errorf("Budget.Get: %w", err)
+	}
+	b.CashBalance = float64(val)
+
+	return h.repo.Budget.Save(ctx, b)
 }
 
 func (h *handler) updateBudgetTiming(ctx context.Context, days int) error {
@@ -89,15 +118,15 @@ func (h *handler) showBudgetStat(ctx context.Context, chatID int64) error {
 	elapsed := float64(now.Unix() - b.StartedAt)
 	daysToExpiration := time.Unix(b.ExpiresAt, 0).Sub(now).Hours() / 24.0
 	estimatedSpending := b.Amount * elapsed / budgetDuration
-	actualSpending := b.Amount - b.Balance
+	actualSpending := b.Amount - b.Balance - b.CashBalance
 	spendingDiff := estimatedSpending - actualSpending
 
 	sign := ""
 	if spendingDiff > 0 {
 		sign = "+"
 	}
-	text := fmt.Sprintf("%dr for %.1f days (%s%dr estimated)",
-		int(b.Balance), daysToExpiration, sign, int(spendingDiff))
+	text := fmt.Sprintf("осталось %dGEL(карта: %d, кеш: %d) на %.1f дней (%s%dGEL от запланированного)",
+		int(b.Balance+b.CashBalance), int(b.Balance), int(b.CashBalance), daysToExpiration, sign, int(spendingDiff))
 	msg := tg.BotMessage{
 		ChatID: chatID,
 		Text:   text,
