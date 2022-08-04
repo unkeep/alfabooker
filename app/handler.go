@@ -81,7 +81,24 @@ func (h *handler) handleUserMessage(ctx context.Context, msg tg.UserMsg) error {
 		return nil
 	}
 
+	if val, err := strconv.Atoi(text); err != nil {
+		if err := h.decreaseCash(ctx, val); err != nil {
+			return fmt.Errorf("decreaseCash: %w", err)
+		}
+		return nil
+	}
+
 	return nil
+}
+
+func (h *handler) decreaseCash(ctx context.Context, val int) error {
+	b, err := h.repo.Budget.Get(ctx)
+	if err != nil && err != db.ErrNotFound {
+		return fmt.Errorf("Budget.Get: %w", err)
+	}
+	b.CashBalance -= float64(val)
+
+	return h.repo.Budget.Save(ctx, b)
 }
 
 func (h *handler) setCash(ctx context.Context, val int) error {
