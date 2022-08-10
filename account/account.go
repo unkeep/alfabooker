@@ -14,13 +14,14 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
-func New(client *http.Client) (*Account, error) {
+func NewDomain(client *http.Client) (*Domain, error) {
+	// nolint: staticcheck
 	gmailSrv, err := gmail.New(client)
 	if err != nil {
-		return nil, fmt.Errorf("gmail.New: %w", err)
+		return nil, fmt.Errorf("gmail.NewDomain: %w", err)
 	}
 
-	acc := &Account{
+	acc := &Domain{
 		gmailSrv:  gmailSrv,
 		amountRE:  regexp.MustCompile(`Сумма:(?:.*\()?([0-9]*\.?[0-9]*)\sBYN\)?`),
 		balanceRE: regexp.MustCompile(`Balance:\s([0-9]*\.?[0-9]*)\sGEL`),
@@ -29,14 +30,14 @@ func New(client *http.Client) (*Account, error) {
 	return acc, nil
 }
 
-type Account struct {
+type Domain struct {
 	gmailSrv  *gmail.Service
 	lastMsgID string
 	amountRE  *regexp.Regexp
 	balanceRE *regexp.Regexp
 }
 
-func (acc *Account) GetOperations(ctx context.Context, ops chan<- Operation) error {
+func (d *Domain) GetOperations(ctx context.Context, ops chan<- Operation) error {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
@@ -45,7 +46,7 @@ func (acc *Account) GetOperations(ctx context.Context, ops chan<- Operation) err
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			op, exist, err := acc.getLastOperation()
+			op, exist, err := d.getLastOperation()
 			if err != nil {
 				log.Println(err)
 				continue
@@ -57,8 +58,8 @@ func (acc *Account) GetOperations(ctx context.Context, ops chan<- Operation) err
 	}
 }
 
-func (acc *Account) getLastOperation() (Operation, bool, error) {
-	listResp, err := acc.gmailSrv.Users.Messages.List("me").Q("label:tbc-sms").MaxResults(1).Do()
+func (d *Domain) getLastOperation() (Operation, bool, error) {
+	listResp, err := d.gmailSrv.Users.Messages.List("me").Q("label:tbc-sms").MaxResults(1).Do()
 
 	if err != nil {
 		return Operation{}, false, fmt.Errorf("Messages.List: %w", err)
@@ -69,11 +70,11 @@ func (acc *Account) getLastOperation() (Operation, bool, error) {
 	}
 
 	msgID := listResp.Messages[0].Id
-	if msgID == acc.lastMsgID {
+	if msgID == d.lastMsgID {
 		return Operation{}, false, nil
 	}
 
-	getResp, err := acc.gmailSrv.Users.Messages.Get("me", msgID).Fields("payload").Do()
+	getResp, err := d.gmailSrv.Users.Messages.Get("me", msgID).Fields("payload").Do()
 	if err != nil {
 		return Operation{}, false, fmt.Errorf("Messages.Get(%s): %w", msgID, err)
 	}
@@ -83,9 +84,9 @@ func (acc *Account) getLastOperation() (Operation, bool, error) {
 		return Operation{}, false, err
 	}
 
-	acc.lastMsgID = msgID
+	d.lastMsgID = msgID
 
-	op, err := acc.newOperation(msgID, data)
+	op, err := d.newOperation(msgID, data)
 	if err != nil {
 		return Operation{}, false, fmt.Errorf("newOperation(id: %s, data: %s): %w", msgID, string(data), err)
 	}
@@ -93,13 +94,13 @@ func (acc *Account) getLastOperation() (Operation, bool, error) {
 	return op, true, nil
 }
 
-func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
-	// amount, err := acc.parseAmount(rawMsg)
+func (d *Domain) newOperation(id string, rawMsg []byte) (Operation, error) {
+	// amount, err := d.parseAmount(rawMsg)
 	// if err != nil {
 	// 	return Operation{}, fmt.Errorf("parseAmount: %w", err)
 	// }
 
-	balance, err := acc.parseBalance(rawMsg)
+	balance, err := d.parseBalance(rawMsg)
 	if err != nil {
 		return Operation{}, fmt.Errorf("parseBalance: %w", err)
 	}
@@ -119,8 +120,8 @@ func (acc *Account) newOperation(id string, rawMsg []byte) (Operation, error) {
 	}, nil
 }
 
-func (acc *Account) parseAmount(body []byte) (float64, error) {
-	res := acc.amountRE.FindSubmatch(body)
+func (d *Domain) parseAmount(body []byte) (float64, error) {
+	res := d.amountRE.FindSubmatch(body)
 	if len(res) != 2 {
 		return 0, fmt.Errorf("unable to parse amount")
 	}
@@ -128,8 +129,8 @@ func (acc *Account) parseAmount(body []byte) (float64, error) {
 	return strconv.ParseFloat(string(res[1]), 64)
 }
 
-func (acc *Account) parseBalance(body []byte) (float64, error) {
-	res := acc.balanceRE.FindSubmatch(body)
+func (d *Domain) parseBalance(body []byte) (float64, error) {
+	res := d.balanceRE.FindSubmatch(body)
 	if len(res) != 2 {
 		return 0, fmt.Errorf("unable to parse balance")
 	}

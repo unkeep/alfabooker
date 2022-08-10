@@ -2,18 +2,19 @@ package app
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/unkeep/alfabooker/account"
+	"github.com/unkeep/alfabooker/api"
+	"github.com/unkeep/alfabooker/budget"
 	"github.com/unkeep/alfabooker/db"
 	"github.com/unkeep/alfabooker/tg"
-	"golang.org/x/oauth2"
 )
 
 const googleTokenID = "google_auth"
@@ -33,18 +34,6 @@ func (app *App) Run(ctx context.Context) error {
 		port = "80"
 	}
 
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	httpServer := http.Server{
-		Addr:    "0.0.0.0:" + port,
-		Handler: http.HandlerFunc(healthcheckHandler),
-	}
-
-	go httpServer.ListenAndServe()
-	go func() {
-		<-ctx.Done()
-		httpServer.Shutdown(context.Background())
-	}()
-
 	googleAuthCfg, err := getGoogleAuthConfig(cfg)
 	if err != nil {
 		return fmt.Errorf("getGoogleAuthConfig: %w", err)
@@ -55,6 +44,16 @@ func (app *App) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("db.GetRepo: %w", err)
 	}
+
+	log.Println("GetBudgetDomain")
+	budgetDomain := &budget.Domain{BudgetRepo: repo.Budget}
+
+	httpServer := api.NewServer(port, budgetDomain)
+	go httpServer.ListenAndServe()
+	go func() {
+		<-ctx.Done()
+		httpServer.Shutdown(context.Background())
+	}()
 
 	log.Println("GetBot")
 	tgBot, err := tg.GetBot(cfg.TgToken)
@@ -78,10 +77,10 @@ func (app *App) Run(ctx context.Context) error {
 
 	googleClient := googleAuthCfg.Client(ctx, googleAutToken)
 
-	log.Println("account.New")
-	acc, err := account.New(googleClient)
+	log.Println("accountDomain.NewDomain")
+	acc, err := account.NewDomain(googleClient)
 	if err != nil {
-		return fmt.Errorf("account.New: %w", err)
+		return fmt.Errorf("accountDomain.NewDomain: %w", err)
 	}
 
 	opChan := make(chan account.Operation, 0)
@@ -92,21 +91,21 @@ func (app *App) Run(ctx context.Context) error {
 		}
 	}()
 
-	h := handler{
-		cfg:     cfg,
-		repo:    repo,
-		account: acc,
-		tgBot:   tgBot,
+	c := controller{
+		cfg:           cfg,
+		repo:          repo,
+		accountDomain: acc,
+		tgBot:         tgBot,
 	}
 
-	hh := func(name string, param interface{}, f func(ctx context.Context) error) {
+	cc := func(name string, param interface{}, f func(ctx context.Context) error) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
 		if err := f(ctx); err != nil {
 			log.Printf("%s(%+v): %s\n", name, param, err.Error())
-			tgBot.SendMessage(tg.BotMessage{
+			_, _ = tgBot.SendMessage(tg.BotMessage{
 				ChatID: cfg.TgAdminChatID,
-				Text: fmt.Sprintf("⚠️ handler: %s, error:\n```%s```\ncontext:\n```%+v```\n",
+				Text: fmt.Sprintf("⚠️ controller: %s, error:\n```%s```\ncontext:\n```%+v```\n",
 					name, err.Error(), param),
 				TextMarkdown: true,
 			})
@@ -121,12 +120,12 @@ func (app *App) Run(ctx context.Context) error {
 		case err := <-critErrosChan:
 			return err
 		case op := <-opChan:
-			hh("handleNewOperation", op, func(ctx context.Context) error {
-				return h.handleNewOperation(ctx, op)
+			cc("handleNewOperation", op, func(ctx context.Context) error {
+				return c.handleNewOperation(ctx, op)
 			})
 		case msg := <-msgChan:
-			hh("handleUserMessage", msg, func(ctx context.Context) error {
-				return h.handleUserMessage(ctx, msg)
+			cc("handleUserMessage", msg, func(ctx context.Context) error {
+				return c.handleUserMessage(ctx, msg)
 			})
 		}
 	}
