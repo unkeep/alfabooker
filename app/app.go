@@ -94,8 +94,9 @@ func (app *App) Run(ctx context.Context) error {
 	c := controller{
 		cfg:           cfg,
 		repo:          repo,
-		accountDomain: acc,
 		tgBot:         tgBot,
+		accountDomain: acc,
+		budgetDomain:  budgetDomain,
 	}
 
 	cc := func(name string, param interface{}, f func(ctx context.Context) error) {
