@@ -48,7 +48,7 @@ func (app *App) Run(ctx context.Context) error {
 	log.Println("GetBudgetDomain")
 	budgetDomain := budget.NewDomain(repo.Budget)
 
-	httpServer := api.NewServer(port, budgetDomain)
+	httpServer := api.NewServer(port, budgetDomain, cfg.APIAuthToken)
 	go httpServer.ListenAndServe()
 	go func() {
 		<-ctx.Done()
