@@ -13,6 +13,7 @@ type config struct {
 	GClientSecret string `required:"true"`
 	GProjectID    string `required:"true"`
 	MongoURI      string `required:"true"`
+	APIAuthToken  string `required:"true"`
 }
 
 func getConfig() (config, error) {

@@ -46,7 +46,7 @@ func (app *App) Run(ctx context.Context) error {
 	}
 
 	log.Println("GetBudgetDomain")
-	budgetDomain := &budget.Domain{BudgetRepo: repo.Budget}
+	budgetDomain := budget.NewDomain(repo.Budget)
 
 	httpServer := api.NewServer(port, budgetDomain)
 	go httpServer.ListenAndServe()
