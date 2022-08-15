@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unkeep/alfabooker/account"
 	"github.com/unkeep/alfabooker/budget"
 	"github.com/unkeep/alfabooker/db"
 	"github.com/unkeep/alfabooker/tg"
@@ -19,27 +18,7 @@ type controller struct {
 	tgBot *tg.Bot
 	cfg   config
 
-	accountDomain *account.Domain
-	budgetDomain  *budget.Domain
-}
-
-func (c *controller) handleNewOperation(ctx context.Context, op account.Operation) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-
-	budget, err := c.repo.Budget.Get(ctx)
-	if err != nil && err != db.ErrNotFound {
-		return fmt.Errorf("Budget.Get: %w", err)
-	}
-
-	budget.Balance = op.Balance
-
-	c.repo.Budget.Save(ctx, budget)
-	if err != nil {
-		return fmt.Errorf("Budget.Save: %w", err)
-	}
-
-	return nil
+	budgetDomain *budget.Domain
 }
 
 func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) error {
