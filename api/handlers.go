@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/unkeep/alfabooker/budget"
@@ -55,7 +56,8 @@ func (h *handler) showBudgetStat(request *http.Request, writer http.ResponseWrit
 
 func (h *handler) updateAccount(request *http.Request, writer http.ResponseWriter) {
 	var reqData struct {
-		Sms string `json:"sms"`
+		Sms       string      `json:"sms"`
+		Timestamp interface{} `json:"timestamp"`
 	}
 
 	if err := json.NewDecoder(request.Body).Decode(&reqData); err != nil {
@@ -63,6 +65,8 @@ func (h *handler) updateAccount(request *http.Request, writer http.ResponseWrite
 		writer.Write([]byte(err.Error()))
 		return
 	}
+
+	fmt.Println("reqData.Timestamp: ", reqData.Timestamp)
 
 	err := h.budgetDomain.UpdateAccountBalanceFromSMS(request.Context(), reqData.Sms)
 	if err != nil {
