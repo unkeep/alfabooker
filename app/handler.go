@@ -63,6 +63,20 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		return nil
 	}
 
+	if strings.HasPrefix(text, "account ") {
+		text = strings.TrimPrefix(text, "account ")
+		val, err := strconv.Atoi(text)
+		if err != nil {
+			return fmt.Errorf("parse account value: %w", err)
+		}
+
+		if err := c.budgetDomain.UpdateAccountBalance(ctx, float64(val)); err != nil {
+			return fmt.Errorf("budgetDomain.UpdateAccountBalance: %w", err)
+		}
+
+		return nil
+	}
+
 	if val, err := strconv.Atoi(text); err != nil {
 		if err := c.decreaseCash(ctx, val); err != nil {
 			return fmt.Errorf("decreaseCash: %w", err)

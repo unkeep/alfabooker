@@ -74,6 +74,21 @@ func (d *Domain) UpdateAccountBalanceFromSMS(ctx context.Context, sms string) er
 	return nil
 }
 
+func (d *Domain) UpdateAccountBalance(ctx context.Context, accountBalance float64) error {
+	b, err := d.budgetRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("BudgetRepo.Get: %w", err)
+	}
+
+	b.Balance = accountBalance
+
+	if err := d.budgetRepo.Save(ctx, b); err != nil {
+		return fmt.Errorf("BudgetRepo.Save: %w", err)
+	}
+
+	return nil
+}
+
 func (d *Domain) parseBalanceFromSMS(sms string) (float64, error) {
 	res := d.balanceRE.FindSubmatch([]byte(sms))
 	if len(res) != 2 {
