@@ -86,9 +86,12 @@ func NewHandler() (http.Handler, error) {
 		return nil, fmt.Errorf("url.Parse(cfg.URL): %w", err)
 	}
 
-	tgUpdatesPath := fmt.Sprintf("/%s/%s/%s", rootURL.Path, "tgupdate", cfg.TgToken)
+	tgUpdatesPath := fmt.Sprintf("%s/%s/%s", rootURL.Path, "tgupdate", cfg.TgToken)
+	if !strings.HasPrefix(tgUpdatesPath, "/") {
+		tgUpdatesPath = "/" + tgUpdatesPath
+	}
+	webHookUrl := fmt.Sprintf("%s://%s", rootURL.Scheme, rootURL.Host+tgUpdatesPath)
 
-	webHookUrl := fmt.Sprintf("%s://%s%s", rootURL.Scheme, rootURL.Host, tgUpdatesPath)
 	log.Println("set TG webhook", webHookUrl)
 	wh, err := tgbotapi.NewWebhook(webHookUrl)
 	if err != nil {
@@ -105,9 +108,6 @@ func NewHandler() (http.Handler, error) {
 	if info.LastErrorDate != 0 {
 		log.Println("info.LastErrorMessage: ", info.LastErrorMessage)
 	}
-
-	api.PathPrefix = rootURL.Path + api.PathPrefix
-	log.Println("api path prefix: ", api.PathPrefix)
 
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch {
