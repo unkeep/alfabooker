@@ -24,7 +24,7 @@ type controller struct {
 func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) error {
 	log.Println(msg)
 
-	if msg.ChatID != c.cfg.TgChatID && msg.ChatID != c.cfg.TgAdminChatID {
+	if msg.ChatID != c.cfg.TgAdminChatID {
 		return fmt.Errorf("message from unknown chat: %+v", msg)
 	}
 

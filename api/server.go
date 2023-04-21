@@ -17,3 +17,7 @@ func NewServer(port string, budgetDomain *budget.Domain, authToken string) http.
 		Handler: h,
 	}
 }
+
+func NewHandler(budgetDomain *budget.Domain, authToken string) http.Handler {
+	return &handler{budgetDomain: budgetDomain, authToken: authToken}
+}

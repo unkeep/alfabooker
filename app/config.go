@@ -6,10 +6,10 @@ import (
 
 type config struct {
 	TgToken       string `required:"true"`
-	TgChatID      int64  `required:"true"`
 	TgAdminChatID int64  `required:"true"`
 	MongoURI      string `required:"true"`
 	APIAuthToken  string `required:"true"`
+	URL           string `required:"true"`
 }
 
 func getConfig() (config, error) {

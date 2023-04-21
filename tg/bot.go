@@ -1,26 +1,29 @@
 package tg
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// GetBot creates a telegram bot instance
-func GetBot(botToken string) (*Bot, error) {
+// GetBot creates a telegram API instance
+func GetBot(botToken string, h func(UserMsg)) (*Bot, error) {
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bot{
-		bot: bot,
+		API: bot,
+		h:   h,
 	}, nil
 }
 
 type Bot struct {
-	bot *tgbotapi.BotAPI
+	API *tgbotapi.BotAPI
+	h   func(UserMsg)
 }
 
 func (b *Bot) SendMessage(m BotMessage) (int, error) {
@@ -33,10 +36,10 @@ func (b *Bot) SendMessage(m BotMessage) (int, error) {
 		msg.ReplyMarkup = makeInlineKeyboardMarkup(m.Btns)
 	}
 
-	sentMsg, err := b.bot.Send(msg)
+	sentMsg, err := b.API.Send(msg)
 
 	if err != nil {
-		return 0, fmt.Errorf("bot.Send: %w", err)
+		return 0, fmt.Errorf("API.Send: %w", err)
 	}
 
 	return sentMsg.MessageID, nil
@@ -44,9 +47,9 @@ func (b *Bot) SendMessage(m BotMessage) (int, error) {
 
 func (b *Bot) EditBtns(chatID int64, msgID int, newBtns []Btn) error {
 	keyboardEdit := tgbotapi.NewEditMessageReplyMarkup(chatID, msgID, makeInlineKeyboardMarkup(newBtns))
-	_, err := b.bot.Send(keyboardEdit)
+	_, err := b.API.Send(keyboardEdit)
 	if err != nil {
-		return fmt.Errorf("bot.Send: %w", err)
+		return fmt.Errorf("API.Send: %w", err)
 	}
 
 	return nil
@@ -63,26 +66,27 @@ func makeInlineKeyboardMarkup(btns []Btn) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-func (b *Bot) GetUpdates(ctx context.Context, msgs chan<- UserMsg) error {
-	updCfg := tgbotapi.NewUpdate(0)
-	updCfg.Timeout = 60
-	updCh, err := b.bot.GetUpdatesChan(updCfg)
+func (b *Bot) HandleUpdateRequest(w http.ResponseWriter, r *http.Request) {
+	// Parse incoming request
+	upd, err := parseTelegramRequest(r)
 	if err != nil {
-		return fmt.Errorf("bot.GetUpdatesChan: %w", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case upd := <-updCh:
-			if upd.Message != nil {
-				msgs <- UserMsg{
-					ChatID: upd.Message.Chat.ID,
-					ID:     upd.Message.MessageID,
-					Text:   upd.Message.Text,
-				}
-			}
-		}
+	b.h(UserMsg{
+		ChatID: upd.Message.Chat.ID,
+		ID:     upd.Message.MessageID,
+		Text:   upd.Message.Text,
+	})
+	w.WriteHeader(http.StatusOK)
+}
+
+// parseTelegramRequest handles incoming update from the Telegram web hook
+func parseTelegramRequest(r *http.Request) (tgbotapi.Update, error) {
+	var update tgbotapi.Update
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		return tgbotapi.Update{}, err
 	}
+	return update, nil
 }

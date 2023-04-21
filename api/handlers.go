@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/unkeep/alfabooker/budget"
 )
+
+var PathPrefix = "/api"
 
 type handler struct {
 	authToken    string
@@ -14,8 +17,13 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	path := strings.TrimSuffix(request.URL.Path, PathPrefix)
+	if len(path) == len(request.URL.Path) {
+		writer.WriteHeader(http.StatusNotFound)
+	}
+
 	// health check
-	if request.URL.Path == "/" {
+	if path == "/" || path == "" {
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("OK"))
 		return
@@ -27,14 +35,12 @@ func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if request.Method == "GET" && request.URL.Path == "/budget_stat" {
-		// TODO: add auth
+	if request.Method == "GET" && path == "/budget_stat" {
 		h.showBudgetStat(request, writer)
 		return
 	}
 
-	if request.Method == "POST" && request.URL.Path == "/account" {
-		// TODO: add auth
+	if request.Method == "POST" && path == "/account" {
 		h.updateAccount(request, writer)
 		return
 	}
