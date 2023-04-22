@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -81,17 +80,8 @@ func NewHandler() (http.Handler, error) {
 
 	apiHandler := api.NewHandler(budgetDomain, cfg.APIAuthToken)
 
-	rootURL, err := url.Parse(cfg.URL)
-	if err != nil {
-		return nil, fmt.Errorf("url.Parse(cfg.URL): %w", err)
-	}
-
-	tgUpdatesPath := fmt.Sprintf("%s/%s/%s", rootURL.Path, "tgupdate", cfg.TgToken)
-	if !strings.HasPrefix(tgUpdatesPath, "/") {
-		tgUpdatesPath = "/" + tgUpdatesPath
-	}
-	webHookUrl := fmt.Sprintf("%s://%s", rootURL.Scheme, rootURL.Host+tgUpdatesPath)
-
+	tgUpdatesPath := "/tgupdate/" + cfg.TgToken
+	webHookUrl := cfg.URL + tgUpdatesPath
 	log.Println("set TG webhook", webHookUrl)
 	wh, err := tgbotapi.NewWebhook(webHookUrl)
 	if err != nil {
@@ -118,7 +108,7 @@ func NewHandler() (http.Handler, error) {
 			tgBot.HandleUpdateRequest(writer, request)
 			return
 		default:
-			log.Println("invalid URL", request.URL.String())
+			log.Println("invalid Path", request.URL.Path)
 			writer.WriteHeader(http.StatusNotFound)
 			return
 		}

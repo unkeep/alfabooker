@@ -13,4 +13,7 @@ type Statistics struct {
 
 	EstimatedBalance float64 `json:"estimated_balance"`
 	BalanceDeviation float64 `json:"balance_deviation"`
+
+	Spent                float64 `json:"spent"`
+	DailyAverageSpending float64 `json:"daily_average_spending"`
 }

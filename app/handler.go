@@ -30,6 +30,12 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 
 	text := strings.TrimSpace(msg.Text)
 
+	if text == "/help" {
+		if err := c.showHelp(ctx, msg.ChatID); err != nil {
+			return fmt.Errorf("showHelp: %w", err)
+		}
+	}
+
 	if text == "?" {
 		if err := c.showBudgetStat(ctx, msg.ChatID); err != nil {
 			return fmt.Errorf("showBudgetStat: %w", err)
@@ -37,8 +43,8 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		return nil
 	}
 
-	if strings.HasPrefix(text, "new ") {
-		text = strings.TrimPrefix(text, "new ")
+	if strings.HasPrefix(text, "start ") {
+		text = strings.TrimPrefix(text, "start ")
 		val, err := strconv.Atoi(text)
 		if err != nil {
 			return fmt.Errorf("parse days: %w", err)
@@ -63,8 +69,8 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		return nil
 	}
 
-	if strings.HasPrefix(text, "account ") {
-		text = strings.TrimPrefix(text, "account ")
+	if strings.HasPrefix(text, "card ") {
+		text = strings.TrimPrefix(text, "card ")
 		val, err := strconv.Atoi(text)
 		if err != nil {
 			return fmt.Errorf("parse account value: %w", err)
@@ -72,6 +78,20 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 
 		if err := c.budgetDomain.UpdateAccountBalance(ctx, float64(val)); err != nil {
 			return fmt.Errorf("budgetDomain.UpdateAccountBalance: %w", err)
+		}
+
+		return nil
+	}
+
+	if strings.HasPrefix(text, "align ") {
+		text = strings.TrimPrefix(text, "align ")
+		val, err := strconv.Atoi(text)
+		if err != nil {
+			return fmt.Errorf("parse account value: %w", err)
+		}
+
+		if err := c.budgetDomain.DecreaseAndAlignBudget(ctx, float64(val)); err != nil {
+			return fmt.Errorf("budgetDomain.DecreaseAndAlignBudget: %w", err)
 		}
 
 		return nil
@@ -120,6 +140,29 @@ func (c *controller) updateBudgetTiming(ctx context.Context, days int) error {
 	return c.repo.Budget.Save(ctx, b)
 }
 
+func (c *controller) showHelp(ctx context.Context, chatID int64) error {
+	msgText := `
+?           - show statistics
+start <num> - start new budget tracking for <num> days 
+card        - set amount on card to <num> 
+cash <num>  - set amount of cash to <num> 
+<num>       - decrease cache by <num>
+align <num> - decrease budget amount by <num> and it's duration proportionately'`
+
+	msgText = strings.TrimPrefix(msgText, "\n")
+
+	msg := tg.BotMessage{
+		ChatID: chatID,
+		Text:   msgText,
+	}
+	if _, err := c.tgBot.SendMessage(msg); err != nil {
+		return fmt.Errorf("tgBot.SendMessage: %w", err)
+	}
+
+	return nil
+
+}
+
 func (c *controller) showBudgetStat(ctx context.Context, chatID int64) error {
 	stat, err := c.budgetDomain.GetStat(ctx)
 	if err != nil {
@@ -131,13 +174,20 @@ func (c *controller) showBudgetStat(ctx context.Context, chatID int64) error {
 		balanceDeviationStr = "+" + balanceDeviationStr
 	}
 
-	text := fmt.Sprintf("осталось %d (карта: %d, кеш: %d) на %.1f дней (%s от запланированного)",
-		int(stat.TotalBalance),
+	text := fmt.Sprintf(`
+card: %d, cash: %d, total: %d
+%s from estimated balance
+%.1f days left
+%d avg daily spending`,
 		int(stat.AccountBalance),
 		int(stat.CashBalance),
-		stat.BudgetDaysToExpiration,
+		int(stat.TotalBalance),
 		balanceDeviationStr,
+		stat.BudgetDaysToExpiration,
+		int(stat.DailyAverageSpending),
 	)
+	text = strings.TrimPrefix(text, "\n")
+
 	msg := tg.BotMessage{
 		ChatID: chatID,
 		Text:   text,

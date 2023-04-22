@@ -41,6 +41,14 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 
 	balanceDeviation := totalBalance - estimatedBalance
 
+	spent := b.Amount - totalBalance
+	elapsedDays := elapsed / 24.0 / 3600.0
+	dailyAverageSpending := spent / elapsedDays
+
+	// spent: 295.89 elapsedSec: 36890 elapsedDays: 0.4269675925925926 daily: 693.0034155597723
+
+	fmt.Println("spent:", spent, "elapsedSec:", elapsed, "elapsedDays:", elapsedDays, "daily:", dailyAverageSpending)
+
 	return &Statistics{
 		BudgetAmount:           b.Amount,
 		BudgetStartedAt:        b.StartedAt,
@@ -51,6 +59,8 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 		TotalBalance:           totalBalance,
 		EstimatedBalance:       estimatedBalance,
 		BalanceDeviation:       balanceDeviation,
+		Spent:                  spent,
+		DailyAverageSpending:   dailyAverageSpending,
 	}, nil
 }
 
@@ -84,6 +94,27 @@ func (d *Domain) UpdateAccountBalance(ctx context.Context, accountBalance float6
 
 	if err := d.budgetRepo.Save(ctx, b); err != nil {
 		return fmt.Errorf("BudgetRepo.Save: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Domain) DecreaseAndAlignBudget(ctx context.Context, byValue float64) error {
+	b, err := d.budgetRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("BudgetRepo.Get: %w", err)
+	}
+
+	decreaseCoeff := byValue / b.Amount
+
+	b.Amount = b.Amount - byValue
+
+	budgetDuration := b.ExpiresAt - b.StartedAt
+	newBudgetTime := budgetDuration - int64(float64(budgetDuration)*decreaseCoeff)
+	b.ExpiresAt = b.StartedAt + newBudgetTime
+
+	if err := d.budgetRepo.Save(ctx, b); err != nil {
+		return fmt.Errorf("budgetRepo.Save: %w", err)
 	}
 
 	return nil

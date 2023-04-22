@@ -17,9 +17,10 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	path := strings.TrimSuffix(request.URL.Path, PathPrefix)
+	path := strings.TrimPrefix(request.URL.Path, PathPrefix)
 	if len(path) == len(request.URL.Path) {
 		writer.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	// health check
