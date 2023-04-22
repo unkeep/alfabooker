@@ -45,10 +45,6 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 	elapsedDays := elapsed / 24.0 / 3600.0
 	dailyAverageSpending := spent / elapsedDays
 
-	// spent: 295.89 elapsedSec: 36890 elapsedDays: 0.4269675925925926 daily: 693.0034155597723
-
-	fmt.Println("spent:", spent, "elapsedSec:", elapsed, "elapsedDays:", elapsedDays, "daily:", dailyAverageSpending)
-
 	return &Statistics{
 		BudgetAmount:           b.Amount,
 		BudgetStartedAt:        b.StartedAt,
