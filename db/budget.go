@@ -9,12 +9,13 @@ import (
 )
 
 type Budget struct {
-	ID          string `bson:"_id"`
-	Amount      float64
-	StartedAt   int64
-	ExpiresAt   int64
-	Balance     float64
-	CashBalance float64
+	ID            string `bson:"_id"`
+	Amount        float64
+	StartedAt     int64
+	ExpiresAt     int64
+	Balance       float64
+	CashBalance   float64
+	ReservedValue float64
 }
 
 const budgetID = "budget"

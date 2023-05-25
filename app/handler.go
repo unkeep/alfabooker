@@ -29,6 +29,7 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 	}
 
 	text := strings.TrimSpace(msg.Text)
+	text = strings.ToLower(text)
 
 	if text == "/help" {
 		if err := c.showHelp(ctx, msg.ChatID); err != nil {
@@ -87,7 +88,21 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		text = strings.TrimPrefix(text, "align ")
 		val, err := strconv.Atoi(text)
 		if err != nil {
-			return fmt.Errorf("parse account value: %w", err)
+			return fmt.Errorf("parse align value: %w", err)
+		}
+
+		if err := c.budgetDomain.DecreaseAndAlignBudget(ctx, float64(val)); err != nil {
+			return fmt.Errorf("budgetDomain.DecreaseAndAlignBudget: %w", err)
+		}
+
+		return nil
+	}
+
+	if strings.HasPrefix(text, "reserve ") {
+		text = strings.TrimPrefix(text, "reserve ")
+		val, err := strconv.Atoi(text)
+		if err != nil {
+			return fmt.Errorf("parse reselved value: %w", err)
 		}
 
 		if err := c.budgetDomain.DecreaseAndAlignBudget(ctx, float64(val)); err != nil {
@@ -143,11 +158,19 @@ func (c *controller) updateBudgetTiming(ctx context.Context, days int) error {
 func (c *controller) showHelp(ctx context.Context, chatID int64) error {
 	msgText := `
 ?           - show statistics
-start <num> - start new budget tracking for <num> days 
-card        - set amount on card to <num> 
-cash <num>  - set amount of cash to <num> 
-<num>       - decrease cache by <num>
-align <num> - decrease budget amount by <num> and it's duration proportionately'`
+
+start <num>   - start new budget tracking for <num> days 
+
+card          - set amount on card to <num> 
+
+cash <num>    - set amount of cash to <num> 
+
+<num>         - decrease cache by <num>
+
+align <num>   - decrease budget amount by <num> and it's duration proportionately'
+
+reserve <num> - set reserved balance value (will not be counted in total balance)
+`
 
 	msgText = strings.TrimPrefix(msgText, "\n")
 

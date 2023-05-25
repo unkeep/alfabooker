@@ -37,7 +37,7 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 	estimatedSpending := elapsed * estimatedSpendingCoeff
 	estimatedBalance := b.Amount - estimatedSpending
 
-	totalBalance := b.Balance + b.CashBalance
+	totalBalance := b.Balance + b.CashBalance - b.ReservedValue
 
 	balanceDeviation := totalBalance - estimatedBalance
 
@@ -108,6 +108,21 @@ func (d *Domain) DecreaseAndAlignBudget(ctx context.Context, byValue float64) er
 	budgetDuration := b.ExpiresAt - b.StartedAt
 	newBudgetTime := budgetDuration - int64(float64(budgetDuration)*decreaseCoeff)
 	b.ExpiresAt = b.StartedAt + newBudgetTime
+
+	if err := d.budgetRepo.Save(ctx, b); err != nil {
+		return fmt.Errorf("budgetRepo.Save: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Domain) SetReservedValue(ctx context.Context, val float64) error {
+	b, err := d.budgetRepo.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("BudgetRepo.Get: %w", err)
+	}
+
+	b.ReservedValue = val
 
 	if err := d.budgetRepo.Save(ctx, b); err != nil {
 		return fmt.Errorf("budgetRepo.Save: %w", err)
