@@ -148,7 +148,7 @@ func (c *controller) updateBudgetTiming(ctx context.Context, days int) error {
 		return fmt.Errorf("Budget.Get: %w", err)
 	}
 	now := time.Now()
-	b.Amount = b.Balance + b.CashBalance
+	b.Amount = b.Balance + b.CashBalance - b.ReservedValue
 	b.StartedAt = now.Unix()
 	b.ExpiresAt = now.Add(time.Hour * time.Duration(24*days)).Unix()
 
