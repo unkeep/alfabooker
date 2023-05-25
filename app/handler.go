@@ -105,8 +105,8 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 			return fmt.Errorf("parse reselved value: %w", err)
 		}
 
-		if err := c.budgetDomain.DecreaseAndAlignBudget(ctx, float64(val)); err != nil {
-			return fmt.Errorf("budgetDomain.DecreaseAndAlignBudget: %w", err)
+		if err := c.budgetDomain.SetReservedValue(ctx, float64(val)); err != nil {
+			return fmt.Errorf("budgetDomain.SetReservedValue: %w", err)
 		}
 
 		return nil
@@ -198,12 +198,14 @@ func (c *controller) showBudgetStat(ctx context.Context, chatID int64) error {
 	}
 
 	text := fmt.Sprintf(`
-card: %d, cash: %d, total: %d
+card: %d, cash: %d, reserved: %d
+total: %d
 %s from estimated balance
 %.1f days left
 %d avg daily spending`,
 		int(stat.AccountBalance),
 		int(stat.CashBalance),
+		int(stat.ReservedBalance),
 		int(stat.TotalBalance),
 		balanceDeviationStr,
 		stat.BudgetDaysToExpiration,

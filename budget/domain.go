@@ -52,6 +52,7 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 		BudgetDaysToExpiration: daysToExpiration,
 		AccountBalance:         b.Balance,
 		CashBalance:            b.CashBalance,
+		ReservedBalance:        b.ReservedValue,
 		TotalBalance:           totalBalance,
 		EstimatedBalance:       estimatedBalance,
 		BalanceDeviation:       balanceDeviation,
