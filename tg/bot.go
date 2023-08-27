@@ -74,6 +74,11 @@ func (b *Bot) HandleUpdateRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if upd.Message == nil {
+		fmt.Println("nil message received")
+		w.WriteHeader(http.StatusOK)
+	}
+
 	b.h(UserMsg{
 		ChatID: upd.Message.Chat.ID,
 		ID:     upd.Message.MessageID,
