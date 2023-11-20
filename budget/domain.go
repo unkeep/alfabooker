@@ -3,6 +3,7 @@ package budget
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -14,6 +15,10 @@ type Domain struct {
 	budgetRepo *db.BudgetRepo
 	balanceRE  *regexp.Regexp
 }
+
+var smsTimestampRE = regexp.MustCompile(`[0-3][0-9]\/[0-1][0-2]\/202[3-4] [0-2][0-9]:[0-6][0-9]:[0-6][0-9]`)
+
+var smsTimestampFormat = "02/01/2006 15:04:05"
 
 func NewDomain(repo *db.BudgetRepo) *Domain {
 	return &Domain{
@@ -67,12 +72,24 @@ func (d *Domain) UpdateAccountBalanceFromSMS(ctx context.Context, sms string) er
 		return fmt.Errorf("parseBalanceFromSMS: %w", err)
 	}
 
+	timeInSMS, hasTimeInSms := d.parseSMSTimestamp(sms)
+
 	b, err := d.budgetRepo.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("BudgetRepo.Get: %w", err)
 	}
 
+	if hasTimeInSms && timeInSMS.Unix() < b.BalanceAt {
+		log.Println("ignored outdated balance SMS")
+		return nil
+	}
+
 	b.Balance = balance
+	if hasTimeInSms {
+		b.BalanceAt = timeInSMS.Unix()
+	} else {
+		b.BalanceAt = time.Now().Unix()
+	}
 
 	if err := d.budgetRepo.Save(ctx, b); err != nil {
 		return fmt.Errorf("BudgetRepo.Save: %w", err)
@@ -88,6 +105,7 @@ func (d *Domain) UpdateAccountBalance(ctx context.Context, accountBalance float6
 	}
 
 	b.Balance = accountBalance
+	b.BalanceAt = time.Now().Unix()
 
 	if err := d.budgetRepo.Save(ctx, b); err != nil {
 		return fmt.Errorf("BudgetRepo.Save: %w", err)
@@ -139,4 +157,18 @@ func (d *Domain) parseBalanceFromSMS(sms string) (float64, error) {
 	}
 
 	return strconv.ParseFloat(string(res[1]), 64)
+}
+
+func (d *Domain) parseSMSTimestamp(sms string) (time.Time, bool) {
+	match := smsTimestampRE.FindString(sms)
+	if match == "" {
+		return time.Time{}, false
+	}
+
+	t, err := time.Parse(smsTimestampFormat, match)
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	return t, true
 }

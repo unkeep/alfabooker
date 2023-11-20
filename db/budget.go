@@ -16,6 +16,7 @@ type Budget struct {
 	Balance       float64
 	CashBalance   float64
 	ReservedValue float64
+	BalanceAt     int64
 }
 
 const budgetID = "budget"
