@@ -70,6 +70,16 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		return nil
 	}
 
+	if strings.HasPrefix(text, "add cash ") {
+		text = strings.TrimPrefix(text, "add cash ")
+		if val, err := strconv.Atoi(text); err != nil {
+			if err := c.addCash(ctx, val); err != nil {
+				return fmt.Errorf("addCash: %w", err)
+			}
+			return nil
+		}
+	}
+
 	if strings.HasPrefix(text, "card ") {
 		text = strings.TrimPrefix(text, "card ")
 		val, err := strconv.Atoi(text)
@@ -112,22 +122,25 @@ func (c *controller) handleUserMessage(ctx context.Context, msg tg.UserMsg) erro
 		return nil
 	}
 
-	if val, err := strconv.Atoi(text); err != nil {
-		if err := c.decreaseCash(ctx, val); err != nil {
-			return fmt.Errorf("decreaseCash: %w", err)
+	if strings.HasPrefix(text, "add budget") {
+		text = strings.TrimPrefix(text, "add budget ")
+		if val, err := strconv.Atoi(text); err != nil {
+			if err := c.addBudget(ctx, val); err != nil {
+				return fmt.Errorf("addBudget: %w", err)
+			}
+			return nil
 		}
-		return nil
 	}
 
 	return nil
 }
 
-func (c *controller) decreaseCash(ctx context.Context, val int) error {
+func (c *controller) addCash(ctx context.Context, val int) error {
 	b, err := c.repo.Budget.Get(ctx)
 	if err != nil && err != db.ErrNotFound {
 		return fmt.Errorf("Budget.Get: %w", err)
 	}
-	b.CashBalance -= float64(val)
+	b.CashBalance += float64(val)
 
 	return c.repo.Budget.Save(ctx, b)
 }
@@ -138,6 +151,17 @@ func (c *controller) setCash(ctx context.Context, val int) error {
 		return fmt.Errorf("Budget.Get: %w", err)
 	}
 	b.CashBalance = float64(val)
+
+	return c.repo.Budget.Save(ctx, b)
+}
+
+func (c *controller) addBudget(ctx context.Context, val int) error {
+	b, err := c.repo.Budget.Get(ctx)
+	if err != nil && err != db.ErrNotFound {
+		return fmt.Errorf("Budget.Get: %w", err)
+	}
+	b.Amount += float64(val)
+	b.StartedAt = time.Now().Unix()
 
 	return c.repo.Budget.Save(ctx, b)
 }
@@ -165,11 +189,13 @@ card          - set amount on card to <num>
 
 cash <num>    - set amount of cash to <num> 
 
-<num>         - decrease cache by <num>
+add cash <num> - add/decrease cache by <num>
 
 align <num>   - decrease budget amount by <num> and it's duration proportionately'
 
 reserve <num> - set reserved balance value (will not be counted in total balance)
+
+add budget   - add/decrease budget by <num>
 `
 
 	msgText = strings.TrimPrefix(msgText, "\n")

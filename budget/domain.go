@@ -67,12 +67,16 @@ func (d *Domain) GetStat(ctx context.Context) (*Statistics, error) {
 }
 
 func (d *Domain) UpdateAccountBalanceFromSMS(ctx context.Context, sms string) error {
+	log.Println("got sms", sms)
+
 	balance, err := d.parseBalanceFromSMS(sms)
 	if err != nil {
 		return fmt.Errorf("parseBalanceFromSMS: %w", err)
 	}
+	log.Println("  with balance", balance)
 
 	timeInSMS, hasTimeInSms := d.parseSMSTimestamp(sms)
+	log.Println("  with/without timestamp", hasTimeInSms, timeInSMS.String())
 
 	b, err := d.budgetRepo.Get(ctx)
 	if err != nil {
