@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/unkeep/alfabooker/budget"
 )
@@ -27,6 +28,11 @@ func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if path == "/" || path == "" {
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte("OK"))
+		return
+	}
+
+	if request.Method == "GET" && path == "/progress_csv" {
+		h.progressCSV(request, writer)
 		return
 	}
 
@@ -59,6 +65,27 @@ func (h *handler) showBudgetStat(request *http.Request, writer http.ResponseWrit
 	}
 
 	_ = json.NewEncoder(writer).Encode(stat)
+}
+
+func (h *handler) progressCSV(request *http.Request, writer http.ResponseWriter) {
+	stat, err := h.budgetDomain.GetStat(request.Context())
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+		// TODO: send err to tg
+		return
+	}
+
+	balancePct := int64(stat.TotalBalance / stat.BudgetAmount * 100.0)
+
+	totalTime := stat.BudgetExpiresAt - stat.BudgetStartedAt
+	timeElapsed := time.Now().Unix() - stat.BudgetStartedAt
+
+	timeElapsedPct := int(float64(timeElapsed) / float64(totalTime) * 100.0)
+
+	writer.Header().Set("Content-Type", "text/csv")
+	_, _ = fmt.Fprintf(writer, "balance,elapsed\n")
+	_, _ = fmt.Fprintf(writer, "%d,%d\n", balancePct, timeElapsedPct)
 }
 
 func (h *handler) updateAccount(request *http.Request, writer http.ResponseWriter) {

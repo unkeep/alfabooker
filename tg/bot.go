@@ -3,6 +3,7 @@ package tg
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -24,6 +25,26 @@ func GetBot(botToken string, h func(UserMsg)) (*Bot, error) {
 type Bot struct {
 	API *tgbotapi.BotAPI
 	h   func(UserMsg)
+}
+
+func (b *Bot) SetWebhook(webHookUrl string) error {
+	wh, err := tgbotapi.NewWebhook(webHookUrl)
+	if err != nil {
+		return fmt.Errorf("NewWebhook: %w", err)
+	}
+	_, err = b.API.Request(wh)
+	if err != nil {
+		return fmt.Errorf("API.Request: %w", err)
+	}
+	info, err := b.API.GetWebhookInfo()
+	if err != nil {
+		return fmt.Errorf("API.GetWebhookInfo: %w", err)
+	}
+	if info.LastErrorDate != 0 {
+		log.Println("TG webhook info: info.LastErrorMessage: ", info.LastErrorMessage)
+	}
+
+	return nil
 }
 
 func (b *Bot) SendMessage(m BotMessage) (int, error) {

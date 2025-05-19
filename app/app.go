@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
 	"github.com/unkeep/alfabooker/api"
 	"github.com/unkeep/alfabooker/budget"
 	"github.com/unkeep/alfabooker/db"
@@ -81,22 +79,10 @@ func NewHandler() (http.Handler, error) {
 	apiHandler := api.NewHandler(budgetDomain, cfg.APIAuthToken)
 
 	tgUpdatesPath := "/tgupdate/" + cfg.TgToken
+
 	webHookUrl := cfg.URL + tgUpdatesPath
-	log.Println("set TG webhook", webHookUrl)
-	wh, err := tgbotapi.NewWebhook(webHookUrl)
-	if err != nil {
-		log.Fatal("tgbotapi.NewWebhook failed", err.Error())
-	}
-	_, err = tgBot.API.Request(wh)
-	if err != nil {
-		log.Fatal("tgAPI.Request(wh) failed", err.Error())
-	}
-	info, err := tgBot.API.GetWebhookInfo()
-	if err != nil {
-		log.Fatal("tgAPI.GetWebhookInfo failed", err.Error())
-	}
-	if info.LastErrorDate != 0 {
-		log.Println("info.LastErrorMessage: ", info.LastErrorMessage)
+	if err := tgBot.SetWebhook(webHookUrl); err != nil {
+		log.Println("tgBot.SetWebhook error. But it's fine (should be already set)", err)
 	}
 
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
